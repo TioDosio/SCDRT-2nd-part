@@ -1,3 +1,3 @@
 - Critical sections em variaveis partilhadas;
 
-- 
+- Não ter comandos redundantes (se a referencia ja estiver a 10 não colocar novamente)
