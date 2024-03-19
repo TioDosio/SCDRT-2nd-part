@@ -2,7 +2,7 @@ CC = g++
 CFLAGS = -std=c++11 -Wall
 LDFLAGS = -lboost_system -pthread
 
-all: server client
+all: clean server client
 
 server: server.cpp
 	$(CC) $(CFLAGS) -o server server.cpp $(LDFLAGS)
