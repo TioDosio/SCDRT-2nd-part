@@ -3,44 +3,62 @@
 
 using namespace boost::asio;
 
-int main()
+int main(int argc, char *argv[])
 {
+    if (argc != 3)
+    {
+        std::cerr << "Usage: " << argv[0] << " <IP address> <port>" << std::endl;
+        return 1;
+    }
+
     io_context io;
     ip::tcp::socket socket(io);
 
-    // Connect to the server
-    socket.connect(ip::tcp::endpoint(ip::address::from_string("127.0.0.1"), 10000));
-
-    std::string message;
-    while (true)
+    try
     {
-        std::cout << "Enter message to send (or type 'exit' to quit): ";
-        std::getline(std::cin, message);
+        // Parse command-line arguments for IP address and port
+        std::string ip_address = argv[1];
+        unsigned short port = std::stoi(argv[2]);
 
-        if (message == "exit")
-            break;
+        // Connect to the server
+        socket.connect(ip::tcp::endpoint(ip::address::from_string(ip_address), port));
 
-        // Append newline character to the message
-        message += '\n';
-
-        // Send the message to the server
-        boost::system::error_code error;
-        write(socket, buffer(message), error);
-        if (error)
+        std::string message;
+        while (true)
         {
-            std::cerr << "Error sending message: " << error.message() << std::endl;
-            break;
-        }
+            std::cout << "Enter message to send (or type 'exit' to quit): ";
+            std::getline(std::cin, message);
 
-        // Receive response from the server
-        char buf[128];
-        size_t len = socket.read_some(buffer(buf, sizeof(buf)), error);
-        if (error)
-        {
-            std::cerr << "Error receiving response: " << error.message() << std::endl;
-            break;
+            if (message == "exit")
+                break;
+
+            // Append newline character to the message
+            message += '\n';
+
+            // Send the message to the server
+            boost::system::error_code error;
+            write(socket, buffer(message), error);
+            if (error)
+            {
+                std::cerr << "Error sending message: " << error.message() << std::endl;
+                break;
+            }
+
+            // Receive response from the server
+            char buf[128];
+            size_t len = socket.read_some(buffer(buf, sizeof(buf)), error);
+            if (error)
+            {
+                std::cerr << "Error receiving response: " << error.message() << std::endl;
+                break;
+            }
+            std::cout << "Received: " << std::string(buf, len) << std::endl;
         }
-        std::cout << "Received: " << std::string(buf, len) << std::endl;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
     }
 
     return 0;
