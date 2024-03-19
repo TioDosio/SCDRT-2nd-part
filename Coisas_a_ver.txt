@@ -1,0 +1,3 @@
+- Critical sections em variaveis partilhadas;
+
+- 
