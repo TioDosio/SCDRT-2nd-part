@@ -1,5 +1,6 @@
 #include <iostream>
 #include <boost/asio.hpp>
+#include "funcs.h"
 
 using namespace boost::asio;
 
@@ -28,31 +29,28 @@ int main(int argc, char *argv[])
         {
             std::cout << "Enter message to send (or type 'exit' to quit): ";
             std::getline(std::cin, message);
-
-            if (message == "exit")
-                break;
-
-            // Append newline character to the message
-            message += '\n';
-
-            // Send the message to the server
-            boost::system::error_code error;
-            write(socket, buffer(message), error);
-            if (error)
+            int flag_msg = ver_message(message);
+            if (flag_msg == 1)
             {
-                std::cerr << "Error sending message: " << error.message() << std::endl;
-                break;
-            }
+                // Send the message to the server
+                boost::system::error_code error;
+                write(socket, buffer(message), error);
+                if (error)
+                {
+                    std::cerr << "Error sending message: " << error.message() << std::endl;
+                    break;
+                }
 
-            // Receive response from the server
-            char buf[128];
-            size_t len = socket.read_some(buffer(buf, sizeof(buf)), error);
-            if (error)
-            {
-                std::cerr << "Error receiving response: " << error.message() << std::endl;
-                break;
+                // Receive response from the server
+                char buf[128];
+                size_t len = socket.read_some(buffer(buf, sizeof(buf)), error);
+                if (error)
+                {
+                    std::cerr << "Error receiving response: " << error.message() << std::endl;
+                    break;
+                }
+                std::cout << "Received: " << std::string(buf, len) << std::endl;
             }
-            std::cout << "Received: " << std::string(buf, len) << std::endl;
         }
     }
     catch (const std::exception &e)
@@ -60,6 +58,5 @@ int main(int argc, char *argv[])
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
-
     return 0;
 }
