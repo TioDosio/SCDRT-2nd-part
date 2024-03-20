@@ -1,3 +1,7 @@
 - Critical sections em variaveis partilhadas;
 
 - Não ter comandos redundantes (se a referencia ja estiver a 10 não colocar novamente)
+
+- Que tipo de verificações de mensagens temos de ter tipo ack or err?
+
+-
