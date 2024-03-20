@@ -23,7 +23,7 @@ public:
                                  if (!ec)
                                  {
                                      rbuf[sz] = 0;
-                                     std::cout << "Received: " << rbuf << std::endl;
+                                     std::cout << "ack" << std::endl;
                                      async_write(sock, buffer(rbuf, sz),
                                                  [this, self](boost::system::error_code ec, std::size_t /* sz */) {});
                                      start();
