@@ -4,4 +4,16 @@
 
 - Que tipo de verificações de mensagens temos de ter tipo ack or err?
 
--
+- Calibration;
+
+- Wake-up function;
+
+- Algorithms:
+    - Dual composition;
+    - Consensus;
+
+- Wake-up pode ter de mandar a sua mensagem várias vezes porque a msg pode-se perder
+
+- A mensagem ta no can-bus nao tem de ir de no em no
+
+- 
