@@ -1,3 +1,6 @@
 {
-    "board": "arduino:mbed_rp2040:pico"
+    "board": "rp2040:rp2040:rpipico",
+    "configuration": "flash=2097152_0,freq=133,opt=Small,rtti=Disabled,stackprotect=Disabled,exceptions=Disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk,ipbtstack=ipv4only,uploadmethod=default",
+    "port": "COM9",
+    "sketch": "Teste comm\\teste_com.ino"
 }
