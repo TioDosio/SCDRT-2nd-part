@@ -32,7 +32,7 @@ void initializeNode(Node &node, double K[], int index, double cost, double lux, 
     node.L = lux;
 }
 
-double evaluate_cost(Node node, double d[], double rho)
+double evaluateCost(Node node, double d[], double rho)
 {
     double cost = 0;
     double norm_squared = 0;
@@ -49,7 +49,7 @@ double evaluate_cost(Node node, double d[], double rho)
     return cost;
 }
 
-bool check_feasibility(Node node, double d[])
+bool checkFeasibility(Node node, double d[])
 {
     double tol = 0.001;
     if (d[node.index] < 0 - tol)
@@ -72,168 +72,143 @@ bool check_feasibility(Node node, double d[])
     return true;
 }
 
-void consensus_iterate(Node &node, double rho, double d[], double &cost)
+void updateBest(double d_best[], double d[], double &cost_best, double cost)
 {
-    bool unconstrainedBest = false;
-    double d_best[3] = {-1, -1, -1};
-    double cost_best = 1000000;
-    bool sol_unconstrained = true;
-    bool sol_boundary_linear = true;
-    bool sol_boundary_0 = true;
-    bool sol_boundary_100 = true;
-    bool sol_linear_0 = true;
-    bool sol_linear_100 = true;
-    double y[3];
     for (int i = 0; i < 3; i++)
+    {
+        d_best[i] = d[i];
+    }
+    cost_best = cost;
+}
+
+void copyArray(double dest[], double src[])
+{
+    for (int i = 0; i < 3; i++)
+    {
+        dest[i] = src[i];
+    }
+}
+
+void consensusIterate(Node &node, double rho, double d[], double &cost)
+{
+    int SIZE = 3;
+    double y[SIZE];
+    for (int i = 0; i < SIZE; i++)
     {
         y[i] = rho * node.d_av[i] - node.lambda[i] - node.c[i];
     }
-    //----------------------------------------------------------------------------------------------------------------
-    // unconstrained minimum
-    double d_u[3];
-    for (int i = 0; i < 3; i++)
+
+    double d_best[SIZE];
+    double cost_best = 1000000;
+
+    double d_temp[SIZE];
+
+    // Unconstrained minimum
+    for (int i = 0; i < SIZE; i++)
     {
-        d_u[i] = (1 / rho) * y[i];
+        d_temp[i] = (1 / rho) * y[i];
     }
-    sol_unconstrained = check_feasibility(node, d_u);
-    if (sol_unconstrained)
+    if (checkFeasibility(node, d_temp))
     {
-        double cost_unconstrained = evaluate_cost(node, d_u, rho);
-        if (cost_unconstrained < cost_best)
+        double cost_temp = evaluateCost(node, d_temp, rho);
+        if (cost_temp < cost_best)
         {
-            for (int i = 0; i < 3; i++)
-            {
-                d_best[i] = d_u[i];
-            }
-            cost_best = cost_unconstrained;
-            unconstrainedBest = true;
-        }
-    }
-    if (!unconstrainedBest)
-    {
-        //----------------------------------------------------------------------------------------------------------------
-        // compute minimum constrained to linear boundary
-        double d_bl[3];
-        for (int i = 0; i < 3; i++)
-        {
-            d_bl[i] = (1 / rho) * y[i] - node.k[i] / node.n * (node.o - node.L + (1 / rho) * (y[0] * node.k[0] + y[1] * node.k[1] + y[2] * node.k[2]));
-        }
-        sol_boundary_linear = check_feasibility(node, d_bl);
-        if (sol_boundary_linear)
-        {
-            double cost_boundary_linear = evaluate_cost(node, d_bl, rho);
-            if (cost_boundary_linear < cost_best)
-            {
-                for (int i = 0; i < 3; i++)
-                {
-                    d_best[i] = d_bl[i];
-                }
-                cost_best = cost_boundary_linear;
-            }
-        }
-        //----------------------------------------------------------------------------------------------------------------
-        // compute minimum constrained to 0 boundary
-        double d_b0[3];
-        for (int i = 0; i < 3; i++)
-        {
-            d_b0[i] = (1 / rho) * y[i];
-            if (i == node.index)
-            {
-                d_b0[i] = 0;
-            }
-        }
-        sol_boundary_0 = check_feasibility(node, d_b0);
-        if (sol_boundary_0)
-        {
-            double cost_boundary_0 = evaluate_cost(node, d_b0, rho);
-            if (cost_boundary_0 < cost_best)
-            {
-                for (int i = 0; i < 3; i++)
-                {
-                    d_best[i] = d_b0[i];
-                }
-                cost_best = cost_boundary_0;
-            }
-        }
-        //----------------------------------------------------------------------------------------------------------------
-        // compute minimum constrained to 100 boundary
-        double d_b1[3];
-        for (int i = 0; i < 3; i++)
-        {
-            d_b1[i] = (1 / rho) * y[i];
-            if (i == node.index)
-            {
-                d_b1[i] = 100;
-            }
-        }
-        sol_boundary_100 = check_feasibility(node, d_b1);
-        if (sol_boundary_100)
-        {
-            double cost_boundary_100 = evaluate_cost(node, d_b1, rho);
-            if (cost_boundary_100 < cost_best)
-            {
-                for (int i = 0; i < 3; i++)
-                {
-                    d_best[i] = d_b1[i];
-                }
-                cost_best = cost_boundary_100;
-            }
-        }
-        //----------------------------------------------------------------------------------------------------------------
-        // compute minimum constrained to linear and 0 boundary
-        double d_l0[3];
-        for (int i = 0; i < 3; i++)
-        {
-            d_l0[i] = (1 / rho) * y[i] - (1 / node.m) * node.k[i] * (node.o - node.L) +
-                      (1 / rho / node.m) * node.k[i] * (node.k[node.index] * y[node.index] - (y[0] * node.k[0] + y[1] * node.k[1] + y[2] * node.k[2]));
-            if (i == node.index)
-            {
-                d_l0[i] = 0;
-            }
-        }
-        sol_linear_0 = check_feasibility(node, d_l0);
-        if (sol_linear_0)
-        {
-            double cost_linear_0 = evaluate_cost(node, d_l0, rho);
-            if (cost_linear_0 < cost_best)
-            {
-                for (int i = 0; i < 3; i++)
-                {
-                    d_best[i] = d_l0[i];
-                }
-                cost_best = cost_linear_0;
-            }
-        }
-        //----------------------------------------------------------------------------------------------------------------
-        // compute minimum constrained to linear and 100 boundary
-        double d_l1[3];
-        for (int i = 0; i < 3; i++)
-        {
-            d_l1[i] = (1 / rho) * y[i] - (1 / node.m) * node.k[i] * (node.o - node.L + 100 * node.k[node.index]) +
-                      (1 / rho / node.m) * node.k[i] * (node.k[node.index] * y[node.index] - (y[0] * node.k[0] + y[1] * node.k[1] + y[2] * node.k[2]));
-            if (i == node.index)
-            {
-                d_l1[i] = 100;
-            }
-        }
-        sol_linear_100 = check_feasibility(node, d_l1);
-        if (sol_linear_100)
-        {
-            double cost_linear_100 = evaluate_cost(node, d_l1, rho);
-            if (cost_linear_100 < cost_best)
-            {
-                for (int i = 0; i < 3; i++)
-                {
-                    d_best[i] = d_l1[i];
-                }
-                cost_best = cost_linear_100;
-            }
+            copyArray(d, d_temp); // if unconstrained is the best, no other will be
+            cost = cost_temp;
+            return;
         }
     }
-    for (int i = 0; i < 3; i++)
+
+    // Compute minimum constrained to linear boundary
+    for (int i = 0; i < SIZE; i++)
     {
-        d[i] = d_best[i];
+        d_temp[i] = (1 / rho) * y[i] - node.k[i] / node.n * (node.o - node.L + (1 / rho) * (y[0] * node.k[0] + y[1] * node.k[1] + y[2] * node.k[2]));
     }
+    if (checkFeasibility(node, d_temp))
+    {
+        double cost_temp = evaluateCost(node, d_temp, rho);
+        if (cost_temp < cost_best)
+        {
+            updateBest(d_best, d_temp, cost_best, cost_temp);
+        }
+    }
+
+    // Compute minimum constrained to 0 boundary
+    for (int i = 0; i < SIZE; i++)
+    {
+        d_temp[i] = (1 / rho) * y[i];
+        if (i == node.index)
+        {
+            d_temp[i] = 0;
+        }
+    }
+    if (checkFeasibility(node, d_temp))
+    {
+        double cost_temp = evaluateCost(node, d_temp, rho);
+        if (cost_temp < cost_best)
+        {
+            updateBest(d_best, d_temp, cost_best, cost_temp);
+        }
+    }
+
+    // Compute minimum constrained to 100 boundary
+    for (int i = 0; i < SIZE; i++)
+    {
+        d_temp[i] = (1 / rho) * y[i];
+        if (i == node.index)
+        {
+            d_temp[i] = 100;
+        }
+    }
+    if (checkFeasibility(node, d_temp))
+    {
+        double cost_temp = evaluateCost(node, d_temp, rho);
+        if (cost_temp < cost_best)
+        {
+            updateBest(d_best, d_temp, cost_best, cost_temp);
+        }
+    }
+
+    // Compute minimum constrained to linear and 0 boundary
+    for (int i = 0; i < SIZE; i++)
+    {
+        d_temp[i] = (1 / rho) * y[i] - (1 / node.m) * node.k[i] * (node.o - node.L) +
+                    (1 / rho / node.m) * node.k[i] * (node.k[node.index] * y[node.index] - (y[0] * node.k[0] + y[1] * node.k[1] + y[2] * node.k[2]));
+        if (i == node.index)
+        {
+            d_temp[i] = 0;
+        }
+    }
+    if (checkFeasibility(node, d_temp))
+    {
+        double cost_temp = evaluateCost(node, d_temp, rho);
+        if (cost_temp < cost_best)
+        {
+            updateBest(d_best, d_temp, cost_best, cost_temp);
+        }
+    }
+
+    // Compute minimum constrained to linear and 100 boundary
+    for (int i = 0; i < SIZE; i++)
+    {
+        d_temp[i] = (1 / rho) * y[i] - (1 / node.m) * node.k[i] * (node.o - node.L + 100 * node.k[node.index]) +
+                    (1 / rho / node.m) * node.k[i] * (node.k[node.index] * y[node.index] - (y[0] * node.k[0] + y[1] * node.k[1] + y[2] * node.k[2]));
+        if (i == node.index)
+        {
+            d_temp[i] = 100;
+        }
+    }
+    if (checkFeasibility(node, d_temp))
+    {
+        double cost_temp = evaluateCost(node, d_temp, rho);
+        if (cost_temp < cost_best)
+        {
+            updateBest(d_best, d_temp, cost_best, cost_temp);
+        }
+    }
+
+    // Copy the best d and cost back to the original variables
+    copyArray(d, d_best);
     cost = cost_best;
 }
 
@@ -280,7 +255,7 @@ int main()
         // node 1
         double d1[3];
         double cost1;
-        consensus_iterate(node1, rho, d1, cost1);
+        consensusIterate(node1, rho, d1, cost1);
 
         for (int j = 0; j < 3; j++)
         {
@@ -289,7 +264,7 @@ int main()
         // node 2
         double d2[3];
         double cost2;
-        consensus_iterate(node2, rho, d2, cost2);
+        consensusIterate(node2, rho, d2, cost2);
         for (int j = 0; j < 3; j++)
         {
             node2.d[j] = d2[j];
@@ -298,7 +273,7 @@ int main()
         // node 3
         double d3[3];
         double cost3;
-        consensus_iterate(node3, rho, d3, cost3);
+        consensusIterate(node3, rho, d3, cost3);
         for (int j = 0; j < 3; j++)
         {
             node3.d[j] = d3[j];
