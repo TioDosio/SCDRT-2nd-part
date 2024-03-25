@@ -1,29 +1,21 @@
-// Include necessary libraries
 #include <iostream>
 #include <chrono>
 #include <boost/asio.hpp>
 
 // Namespace declarations
 using namespace boost::system;
-
 // Create an IO context object
-boost::asio::io_context io;
-
+boost::asio::io_context io_serial;
 // Create a serial port object
-boost::asio::serial_port sp{io};
-
+boost::asio::serial_port sp{io_serial};
 // Create a timer object
-boost::asio::steady_timer tim{io};
-
+boost::asio::steady_timer tim{io_serial};
 // Define maximum buffer size
 constexpr int MAX_SZ = 128;
-
 // Define read and write buffers
 char wbuf[MAX_SZ], rbuf[MAX_SZ];
-
 // Define a counter variable
 int count = 0;
-
 // Forward declaration of functions
 void write_handler(const error_code ec, std::size_t nbytes);
 void timer_handler(const error_code ec);
@@ -98,7 +90,7 @@ int main(int argc, char *argv[])
     sp.async_read_some(boost::asio::buffer(rbuf, MAX_SZ), read_handler);
 
     // Run the IO context to start asynchronous operations
-    io.run();
+    io_serial.run();
 
     return 0;
 }
