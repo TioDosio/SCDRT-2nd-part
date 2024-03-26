@@ -37,6 +37,16 @@ void runConsensus(Node &node1, Node &node2, Node &node3, int maxiter)
             node2.setLambdaIndex(j, node2.getLambdaIndex(j) + node2.getRho() * (node2.getDIndex(j) - node2.getDavIndex(j)));
             node3.setLambdaIndex(j, node3.getLambdaIndex(j) + node3.getRho() * (node3.getDIndex(j) - node3.getDavIndex(j)));
         }
+
+        // Check if a consensus has been reached, if so, break the loop
+        if (node1.checkConvergence() && node2.checkConvergence() && node3.checkConvergence())
+        {
+            break;
+        }
+        // Update the last d values
+        node1.copyArray(node1.getLastD(), node1.getD());
+        node2.copyArray(node2.getLastD(), node2.getD());
+        node3.copyArray(node3.getLastD(), node3.getD());
     }
 }
 
@@ -51,7 +61,7 @@ int main()
 
     // SOLVER PARAMETERS
     double rho = 0.1;
-    int maxiter = 50;
+    int maxiter = 100;
 
     // SYSTEM CALIBRATION PARAMETERS
     double k11 = 2, k12 = 1, k13 = 1, k21 = 1, k22 = 2, k23 = 1, k31 = 1, k32 = 1, k33 = 2;

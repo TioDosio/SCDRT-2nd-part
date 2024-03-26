@@ -8,6 +8,7 @@ void Node::initializeNode(double K[], int index, double cost, double lux, double
     for (int i = 0; i < 3; i++)
     {
         d[i] = 0;
+        lastD[i] = 0;
         d_av[i] = 0;
         lambda[i] = 0;
         k[i] = K[i];
@@ -22,19 +23,19 @@ void Node::initializeNode(double K[], int index, double cost, double lux, double
 
 double Node::evaluateCost(double d[])
 {
-    double cost = 0;
+    double costTemp = 0;
     double norm_squared = 0;
 
     for (int i = 0; i < 3; i++)
     {
-        cost += c[i] * d[i];
+        costTemp += c[i] * d[i];
         double diff = d[i] - d_av[i];
-        cost += lambda[i] * (diff);
+        costTemp += lambda[i] * (diff);
         norm_squared += diff * diff;
     }
 
-    cost += rho / 2 * norm_squared;
-    return cost;
+    costTemp += rho / 2 * norm_squared;
+    return costTemp;
 }
 
 bool Node::checkFeasibility(double d[])
@@ -200,6 +201,26 @@ void Node::consensusIterate()
     cost = cost_best;
 }
 
+bool Node::checkConvergence()
+{
+    double tol = 0.01;
+    double norm_squared = 0;
+    if (k[0] * getDavIndex(0) + k[1] * getDavIndex(1) + k[2] * getDavIndex(2) + o < L)
+    {
+        return false;
+    }
+    for (int i = 0; i < 3; i++)
+    {
+        double diff = d[i] - lastD[i];
+        norm_squared += diff * diff;
+    }
+    if (norm_squared < tol)
+    {
+        return true;
+    }
+    return false;
+}
+
 double *Node::getDav()
 {
     return d_av;
@@ -228,6 +249,11 @@ void Node::setD(double d[])
     }
 }
 
+double *Node::getD()
+{
+    return d;
+}
+
 double Node::getLambdaIndex(int index)
 {
     return lambda[index];
@@ -246,4 +272,9 @@ double Node::getCost()
 double Node::getRho()
 {
     return rho;
+}
+
+double *Node::getLastD()
+{
+    return lastD;
 }
