@@ -35,6 +35,24 @@ public:
                                      start();
                                  }
                              });
+
+        // Asynchronously read from the serial port
+        sp.async_read_some(buffer(tbuf, MAX_SZ),
+                           [this, self](boost::system::error_code ec, size_t sz)
+                           {
+                               if (!ec)
+                               {
+                                   tbuf[sz] = 0;
+                                   std::cout << "Received data from serial port: " << tbuf << std::endl;
+
+                                   // Send the data received from the serial port to the client
+                                   async_write(sock, buffer(tbuf, sz),
+                                               [this, self](boost::system::error_code ec, std::size_t /* sz */) {});
+
+                                   // Continue reading from the serial port
+                                   start();
+                               }
+                           });
     }
 };
 
