@@ -51,6 +51,11 @@ int main(int argc, char *argv[])
                 }
                 std::cout << "Received: " << std::string(buf, len) << std::endl;
             }
+            else if (flag_msg == -1)
+            {
+                std::cout << "Good Bye" << std::endl;
+                exit(0);
+            }
         }
     }
     catch (const std::exception &e)

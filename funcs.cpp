@@ -21,6 +21,42 @@ float isNumber(const std::string &str)
     }
 }
 
+void help()
+{
+    // print help menu
+    std::cout << "------Help menu------" << std::endl;
+    std::cout << "exit          Quit" << std::endl;
+    std::cout << "d <i> <val>   Set duty cycle value" << std::endl;
+    std::cout << "g d <i>       Get the duty cyle value" << std::endl;
+    std::cout << "r <i> <val>   Set reference value" << std::endl;
+    std::cout << "g r <i>       Get reference value" << std::endl;
+    std::cout << "g l <i>       Get the measured iluminance in LUX" << std::endl;
+    std::cout << "o <i> <val>   Set occupancy value" << std::endl;
+    std::cout << "g o <i>       Get occupancy value" << std::endl;
+    std::cout << "a <i> <val>   Set anti-windup value 1-ON, 0-OFF" << std::endl;
+    std::cout << "g a <i>       Get anti-windup value" << std::endl;
+    std::cout << "k <i> <val>   Set feedback value 1-ON, 0-OFF" << std::endl;
+    std::cout << "g k <i>       Get feedback value" << std::endl;
+    std::cout << "g x <i>       Get external iluminance" << std::endl;
+    std::cout << "g p <i>       Get instantaneous power consumption " << std::endl;
+    std::cout << "g t <i>       Get the elapsed time since the last restart" << std::endl;
+    std::cout << "s <x> <i>     Start the stream of real-time variable <x>, l-LUX, d-duty cycle" << std::endl;
+    std::cout << "S <x> <i>     Stop the stream of real-time variable <x>, l-LUX, d-duty cycle" << std::endl;
+    std::cout << "g b <i> <val> Get the last minute buffer of the variable <x> of the desk <i>" << std::endl;
+    std::cout << "e <i> <val>   Get the average energy consumption at the desk <i> since the last system restart." << std::endl;
+    std::cout << "g v <i>       Get the average visibility error at desk <i> since the last system restart" << std::endl;
+    std::cout << "g f <i>       Get the average flicker error on desk <i> since the last system restart " << std::endl;
+    std::cout << "O <i> <val>   Set lower bound on illuminance for the occupied state at desk <i> " << std::endl;
+    std::cout << "g O <i>       Get lower bound on illuminance for the occupied state at desk <i>" << std::endl;
+    std::cout << "U <i> <val>   Set upper bound on illuminance for the occupied state at desk <i> " << std::endl;
+    std::cout << "g U <i>       Get upper bound on illuminance for the occupied state at desk <i>" << std::endl;
+    std::cout << "g L <i>       Get the current illuminance lower bound at the desk <i> " << std::endl;
+    std::cout << "c <i> <val>   Set the current energy cost at the desk <i>" << std::endl;
+    std::cout << "g c <i>       Get the current energy cost at the desk <i>" << std::endl;
+    std::cout << "r             Reset the system" << std::endl;
+    std::cout << "" << std::endl;
+}
+
 int ver_message(const std::string &input)
 {
     std::istringstream iss(input);
@@ -128,7 +164,11 @@ int ver_message(const std::string &input)
     }
     else if (numElements == 1 && elements[0] == "-h")
     {
-        flag = 1;
+        help();
+    }
+    else if (numElements == 1 && elements[0] == "exit")
+    {
+        flag = -1;
     }
     else
     {
