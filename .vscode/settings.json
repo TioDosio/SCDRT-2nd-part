@@ -71,6 +71,7 @@
     "typeindex": "cpp",
     "typeinfo": "cpp",
     "variant": "cpp",
-    "charconv": "cpp"
+    "charconv": "cpp",
+    "fstream": "cpp"
   }
 }
