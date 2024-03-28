@@ -1,6 +1,6 @@
 CC = g++
 CFLAGS = -std=c++11 -Wall
-LDFLAGS = -lboost_system -pthread
+LDFLAGS = -lboost_system -lboost_filesystem -pthread
 
 # Object files for each source file
 OBJECTS = server.o client.o funcs.o

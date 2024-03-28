@@ -1,6 +1,8 @@
 #include <iostream>
 #include <memory>
 #include <boost/asio.hpp>
+#include <boost/filesystem.hpp>
+#include <thread>
 
 using namespace boost::asio;
 
@@ -84,23 +86,38 @@ public:
 
 int main(int argc, char *argv[])
 {
-    if (argc < 2)
-    {
-        std::cerr << "Usage: " << argv[0] << " <portname>" << std::endl;
-        return 1;
-    }
-
     boost::asio::io_context io;
-    boost::asio::serial_port sp{io, argv[1]};
+    boost::asio::serial_port sp{io};
+    bool serialPortOpened = false;
 
-    if (!sp.is_open())
+    // Loop until the serial port /dev/ttyACM0 becomes active
+    while (!serialPortOpened)
     {
-        std::cerr << "Could not open serial port\n";
-        return 1;
+        // Check if /dev/ttyACM0 exists
+        if (boost::filesystem::exists("/dev/ttyACM0"))
+        {
+            sp.open("/dev/ttyACM0"); // Open /dev/ttyACM0
+            if (sp.is_open())
+            {
+                std::cout << "Serial port opened successfully: /dev/ttyACM0\n";
+                serialPortOpened = true; // Set flag to exit loop
+            }
+            else
+            {
+                std::cerr << "Could not open serial port: /dev/ttyACM0\n";
+                std::this_thread::sleep_for(std::chrono::seconds(1)); // Wait for a while before retrying
+            }
+        }
+        else
+        {
+            std::cerr << "Serial port not found: /dev/ttyACM0\n";
+            std::this_thread::sleep_for(std::chrono::seconds(1)); // Wait for a while before retrying
+        }
     }
 
     sp.set_option(boost::asio::serial_port_base::baud_rate{115200});
 
+    // Start the server
     server s(io, 10000, sp);
     io.run();
 

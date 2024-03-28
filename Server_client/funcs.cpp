@@ -48,8 +48,8 @@ void help()
     std::cout << "g f <i>       Get the average flicker error on desk <i> since the last system restart " << std::endl;
     std::cout << "O <i> <val>   Set lower bound on illuminance for the occupied state at desk <i> " << std::endl;
     std::cout << "g O <i>       Get lower bound on illuminance for the occupied state at desk <i>" << std::endl;
-    std::cout << "U <i> <val>   Set upper bound on illuminance for the occupied state at desk <i> " << std::endl;
-    std::cout << "g U <i>       Get upper bound on illuminance for the occupied state at desk <i>" << std::endl;
+    std::cout << "U <i> <val>   Set lower bound on illuminance for the unoccupied state at desk <i> " << std::endl;
+    std::cout << "g U <i>       Get lower bound on illuminance for the unoccupied state at desk <i>" << std::endl;
     std::cout << "g L <i>       Get the current illuminance lower bound at the desk <i> " << std::endl;
     std::cout << "c <i> <val>   Set the current energy cost at the desk <i>" << std::endl;
     std::cout << "g c <i>       Get the current energy cost at the desk <i>" << std::endl;
@@ -69,7 +69,6 @@ int ver_message(const std::string &input)
     {
         elements.push_back(element);
     }
-
     // Count the elements
     int numElements = elements.size();
 
@@ -176,13 +175,11 @@ int ver_message(const std::string &input)
         std::cout << "Invalid command\n-h to show help menu\n"
                   << std::endl;
     }
-
     // Output the separated elements
     /*std::cout << "Number of elements: " << numElements << std::endl;
     for (const auto &el : elements)
     {
         std::cout << el << std::endl;
     }*/
-
     return flag;
 }
