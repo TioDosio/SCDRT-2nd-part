@@ -1,17 +1,7 @@
 - Critical sections em variaveis partilhadas;
-
-- Não ter comandos redundantes (se a referencia ja estiver a 10 não colocar novamente)
-
-- Que tipo de verificações de mensagens temos de ter tipo ack or err?
-
-- Calibration;
-
-- Wake-up function;
-
-- Algorithms:
-    - Dual composition;
-    - Consensus;
-
-- Wake-up pode ter de mandar a sua mensagem várias vezes porque a msg pode-se perder
-
-- 
+- Fazer função de reencaminhar mensagens que chegam do hub para os outros (quando os outros recebem não é para partilharem de novo, ver isso);
+- Fazer funções de sets e gets que faltam das novas features;
+- Quando o HUB receber comandos analisa se é para ele ou não, e processa ou envia para os outros;
+- Colocar funções dos gets, energy, flicker, etc...;
+- Pensar como fazer o stream de dados (mandar mensagem cada loop?);
+- Implementar print do last minute buffer;
