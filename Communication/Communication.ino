@@ -5,7 +5,7 @@ struct can_frame canMsgTx, canMsgRx;
 unsigned long counterTx{0}, counterRx{0};
 MCP2515::ERROR err;
 unsigned long time_to_write;
-unsigned long write_delay{1000};
+unsigned long write_delay{10};
 const byte interruptPin{20};
 volatile byte data_available{false};
 MCP2515 can0{spi0, 17, 19, 16, 18, 10000000};
@@ -14,7 +14,7 @@ void read_interrupt(uint gpio, uint32_t events)
 {
     data_available = true;
 }
-
+int i = 0;
 void setup()
 {
     flash_get_unique_id(this_pico_flash_id);
@@ -32,13 +32,16 @@ void loop()
 {
     if (millis() >= time_to_write)
     {
+        i++;
         canMsgTx.can_id = node_address;
         canMsgTx.can_dlc = 8;
-        unsigned long div = counterTx * 10;
-        for (int i = 0; i < 8; i++)
-        {
-            canMsgTx.data[7 - i] = '0' + ((div /= 10) % 10);
-        }
+
+        // Serialize integers into bytes
+        int value1 = i;     // Example value
+        int value2 = i * 2; // Example value
+        memcpy(canMsgTx.data, &value1, sizeof(value1));
+        memcpy(canMsgTx.data + sizeof(value1), &value2, sizeof(value2));
+
         err = can0.sendMessage(&canMsgTx);
         if (err != MCP2515::ERROR_OK)
         {
@@ -57,7 +60,9 @@ void loop()
         else
         {
             Serial.print("Sending message ");
-            Serial.print(counterTx);
+            Serial.print(value1);
+            Serial.print(" and ");
+            Serial.print(value2);
             Serial.print(" from node ");
             Serial.println(node_address, HEX);
             counterTx++;
@@ -88,9 +93,17 @@ void loop()
             Serial.print(" from node ");
             Serial.print(canMsgRx.can_id, HEX);
             Serial.print(" : ");
-            for (int i = 0; i < canMsgRx.can_dlc; i++)
-                Serial.print((char)canMsgRx.data[i]);
-            Serial.println(" ");
+
+            // Deserialize bytes into integers
+            int received_value1, received_value2;
+            memcpy(&received_value1, canMsgRx.data, sizeof(received_value1));
+            memcpy(&received_value2, canMsgRx.data + sizeof(received_value1), sizeof(received_value2));
+
+            Serial.print("Value 1: ");
+            Serial.print(received_value1);
+            Serial.print(", Value 2: ");
+            Serial.println(received_value2);
+
             data_available = false;
         }
     }
