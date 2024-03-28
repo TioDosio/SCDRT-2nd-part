@@ -1,7 +1,7 @@
 Basic asynchronous TCP communication: Check <br />
-Implement commands: <br />
-Send commands to the Rasperrypy PICO: <br />
-System wake-up: <br />
+Implement commands: Check <br />
+Send commands to the Rasperrypy PICO: Check <br />
+System wake-up: Check <br />
 Calibration: <br />
-Hub function:  <br />
+Hub function: <br />
 Consensus: <br />
