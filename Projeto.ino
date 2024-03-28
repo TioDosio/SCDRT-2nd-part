@@ -2,10 +2,9 @@
 #include "command.h"
 #include "lumminaire.h"
 #include "consensus.h"
+#include "communication.h"
+#include "extrafunctions.h"
 
-#include <hardware/flash.h> //for flash_get_unique_id
-#include "mcp2515.h"
-#include <queue> // std::queue
 #define TIME_ACK 2500
 
 // Lumminaire
@@ -81,8 +80,8 @@ void setup1()
 
   // Connection timers
   randomSeed(node_address);
-  time_to_connect += (random(21) * 100); // To ensure that the nodes don't connect at the same time
-  connect_time = millis();
+  comm.add2TimeToConnect(random(21) * 100); // To ensure that the nodes don't connect at the same time
+  comm.setConnectTime(millis());
 }
 
 void loop()
@@ -160,66 +159,13 @@ inline void communicationLoop()
   if (data_available)
   {
     data_available = false;
-    if (!missing_ack.empty()) // Check if something has been received
+    if (!comm.isMissingAckEmpty()) // Check if there are any missing acks
     {
-      while (can0.checkReceive() && !missing_ack.empty())
-      {
-        can_frame canMsgRx;
-        can0.readMessage(&canMsgRx);
-
-        if (canMsgRx.data[0] != 'A')
-        {
-          command_queue.push(canMsgRx);
-        }
-        else
-        {
-          confirm_msg(canMsgRx);
-          if (missing_ack.empty())
-          {
-            switch (last_msg_sent.data[0]) // Trigger of some actions after receiving the ack
-            {
-            case 'C':
-              switch (last_msg_sent.data[1])
-              {
-              case 'B':
-              {
-                light_off = adc_to_lux(digital_filter(50.0));
-                calibration_msg(0, 'E');
-              }
-              break;
-              case 'E':
-              {
-                calibration_msg(1, 'S');
-              }
-              break;
-              case 'R':
-              {
-                if (desk != desks_connected.size() + 1)
-                {
-                  analogWrite(LED_PIN, 0);
-                  calibration_msg(desk + 1, 'S');
-                }
-                else
-                {
-                  is_calibrated = true;
-                  calibration_msg(0, 'F');
-                  analogWrite(LED_PIN, 0);
-                }
-              }
-              break;
-              default:
-                break;
-              }
-            default:
-              break;
-            }
-          }
-        }
-      }
+      comm.acknowledge_loop();
     }
     else
     {
-      while (can0.checkReceive())
+      while (can0.checkReceive()) // Check if something has been received
       {
         can_frame canMsgRx;
         can0.readMessage(&canMsgRx);
@@ -295,29 +241,6 @@ inline void communicationLoop()
   }
 }
 
-// Conversões
-float adc_to_volt(int read_adc)
-{
-  return read_adc / adc_conv;
-}
-
-int volt_to_adc(float input_volt)
-{
-  return input_volt * adc_conv;
-}
-
-float adc_to_lux(int read_adc)
-{
-  float LDR_volt;
-  LDR_volt = read_adc / adc_conv;
-  return volt_to_lux(LDR_volt);
-}
-
-float volt_to_lux(float volt)
-{
-  float LDR_resistance = (VCC * 10000.0) / volt - 10000.0;
-  return pow(10, (log10(LDR_resistance) - my_desk.getOffset_R_Lux()) / (my_desk.getM()));
-}
 
 // Funções extras
 void Gain()
@@ -375,10 +298,10 @@ float Tau(float value)
 
 int runConsensus()
 {
-  if (numberOfDesks == 3)
+  if (comm.getNumDesks() == 3)
   {
     // NODE INITIALIZATION
-    node.initializeNode(K[luminaire.getDeskNumber() - 1], luminaire.getDeskNumber() - 1);
+    node.initializeNode(K[luminaire.getDeskNumber() - 1], luminaire.getDeskNumber() - 1, luminaire.getExternalLight(luminaire.getDeskNumber() - 1));
 
     // RUN CONSENSUS ALGORITHM
     consensusRunning = true;
@@ -399,15 +322,15 @@ void ConsensusLoop()
       // COMPUTATION OF THE PRIMAL SOLUTIONS
       node.consensusIterate();
 
-      send_msg(node.getD()); // Send the d values to the neighbors
+      consensus_msg(node.getD()); // Send the d values to the neighbors
 
       consensusStage = consensusStage::CONSENSUSWAIT;
-      otherD[2][3] = {0};
+      otherD[3][3] = {0};
       break;
     }
     case consensusStage::CONSENSUSWAIT:
     {
-      if (true) // received all neighbors d values
+      if (consensus_acknoledged) // received all neighbors d values with acks
       {
         // COMPUTATION OF THE AVERAGE
         double temp;
@@ -433,31 +356,12 @@ void ConsensusLoop()
         {
           consensusIteration++;
           consensusStage = consensusStage::CONSENSUSITERATON;
+          // Update the last d values
+          node.copyArray(node.getLastD(), node.getD());
         }
-
-        // Update the last d values
-        node.copyArray(node.getLastD(), node.getD());
       }
-
       break;
     }
     }
-  }
-}
-
-void consensus_msg(double d[3])
-{
-  struct can_frame canMsgTx;
-  canMsgTx.can_id = desk;
-  canMsgTx.can_dlc = 8;
-  canMsgTx.data[0] = 'S';
-  canMsgTx.data[1] = 'D';
-  memcpy(canMsgTx.data + (2 * sizeof(char)), &d[0], sizeof(d[0]));
-  memcpy(canMsgTx.data + (2 * sizeof(char) + sizeof(d[0])), &d[1], sizeof(d[1]));
-  memcpy(canMsgTx.data + (2 * sizeof(char) + 2 * sizeof(d[0])), &d[2], sizeof(d[2]));
-  err = can0.sendMessage(&canMsgTx);
-  if (err != MCP2515::ERROR_OK)
-  {
-    Serial.printf("Error sending message: %s\n", err);
   }
 }

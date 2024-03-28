@@ -4,7 +4,6 @@
 // MESSAGES
 MCP2515::ERROR err;
 MCP2515 can0{spi0, 17, 19, 16, 18, 10000000};
-std::set<int> missing_ack;
 std::queue<can_frame> command_queue;
 can_frame last_msg_sent;
 int last_msg_counter = 0;

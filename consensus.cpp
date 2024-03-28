@@ -2,7 +2,7 @@
 #include <cmath>
 #include "consensus.h"
 
-void Node::initializeNode(double K[], int index)
+void Node::initializeNode(double K[], int index, double o)
 {
     this->index = index;
     rho = 0.1;
@@ -17,7 +17,7 @@ void Node::initializeNode(double K[], int index)
     }
     n = k[0] * k[0] + k[1] * k[1] + k[2] * k[2];
     m = n - k[index] * k[index];
-    this->o = 1;
+    this->o = o;
     L = getLowerBoundUnoccupied();
     c = 1;
 }
