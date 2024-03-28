@@ -17,6 +17,9 @@ private:
     double rho;
     double cost;
     double lastD[3];
+    int occupancy;
+    double lowerBoundOccupied = 10;
+    double lowerBoundUnoccupied = 3;
     double evaluateCost(double d[]);
     bool checkFeasibility(double d[]);
     void updateBest(double d_best[], double d[], double &cost_best, double cost);

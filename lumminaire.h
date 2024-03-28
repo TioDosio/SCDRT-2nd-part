@@ -5,21 +5,32 @@
 
 class lumminaire
 {
-  float m, offset_R_Lux, Pmax, DutyCycle, G, ref_unoccupied, ref_occupied;
+  float m, offset_R_Lux, Pmax, DutyCycle, G, ref_unoccupied, ref_occupied, ref, ref_volt;
   float last_minute_buffer_d[buffer_size], last_minute_buffer_l[buffer_size];
   bool occupied, lux_flag, duty_flag, ignore_reference, buffer_full, on;
-  unsigned short desk_number, idx_buffer;
+  int desk_number, idx_buffer;
   double Energy_avg, visibility_err, flicker_err;
   unsigned long counter_avg;
 
 public:
-  explicit lumminaire(float _m, float _offset_R_Lux, float _Pmax, unsigned short _desk_number);
+  explicit lumminaire(float _m, float _offset_R_Lux, float _Pmax, int _desk_number = 1);
   ~lumminaire(){};
   void store_buffer(float lux);
   void Compute_avg(float h, float lux, float reference);
+  float lux_to_volt(float lux);
 
   // Setters
+  void setRef(float value)
+  {
+    ref = value;
+    ref_volt = lux_to_volt(ref);
+  }
 
+
+  void setDeskNumber(int value)
+  {
+    desk_number = value;
+  }
   void setOccupied(bool value)
   {
     occupied = value;
@@ -63,6 +74,15 @@ public:
   }
 
   // Getters
+  float getRef() const
+  {
+    return ref;
+  }
+
+  float getRefVolt() const
+  {
+    return ref_volt;
+  }
 
   bool isOccupied() const
   {
@@ -114,8 +134,7 @@ public:
     return ref_unoccupied;
   }
 
-
-  unsigned short getIdxBuffer() const
+  int getIdxBuffer() const
   {
     return idx_buffer;
   }
@@ -140,7 +159,7 @@ public:
     return ignore_reference;
   }
 
-  unsigned short getDeskNumber() const
+  int getDeskNumber() const
   {
     return desk_number;
   }

@@ -183,7 +183,7 @@ void read_command() {
             break;
           }
           my_pid.set_k(K);
-          my_pid.set_b(lux_to_volt(ref) / ref, my_desk.getGain());
+          my_pid.set_b(lumminaire.getRefVolt()/ lumminaire.getRef(), my_desk.getGain());
           Serial.println("ack");
         }
         break;
@@ -291,7 +291,7 @@ void read_command() {
             }
             break;
           case 'r':
-            Serial.printf("r %d %f\n", lumminaire, ref);
+            Serial.printf("r %d %f\n", lumminaire, lumminaire.getRef());
             break;
           case 'o':
             Serial.printf("o %d %d\n", lumminaire, my_desk.isOccupied());
@@ -473,6 +473,6 @@ void real_time_stream_of_data(unsigned long time, float lux) {
     Serial.printf("s d %d %f %ld \n", my_desk.getDeskNumber(), my_desk.getDutyCycle(), time);
   }
   if (debbuging) {
-    Serial.printf("0 40 %f %f %f\n", lux, ref, my_desk.getDutyCycle());
+    Serial.printf("0 40 %f %f %f\n", lux, lumminaire.getRef(), my_desk.getDutyCycle());
   }
 }

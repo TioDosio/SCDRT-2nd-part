@@ -2,9 +2,10 @@
 #include <cmath>
 #include "consensus.h"
 
-void Node::initializeNode(double K[], int index, double cost, double lux, double o, double rho)
+void Node::initializeNode(double K[], int index)
 {
     this->index = index;
+    rho = 0.1;
     for (int i = 0; i < 3; i++)
     {
         d[i] = 0;
@@ -16,9 +17,9 @@ void Node::initializeNode(double K[], int index, double cost, double lux, double
     }
     n = k[0] * k[0] + k[1] * k[1] + k[2] * k[2];
     m = n - k[index] * k[index];
-    this->o = o;
-    L = lux;
-    this->rho = rho;
+    this->o = 1;
+    L = getLowerBoundUnoccupied();
+    c = 1;
 }
 
 double Node::evaluateCost(double d[])
@@ -277,4 +278,38 @@ double Node::getRho()
 double *Node::getLastD()
 {
     return lastD;
+}
+
+void Node::setLowerBoundOccupied(double value)
+{
+    lowerBoundOccupied = value;
+}
+
+double Node::getLowerBoundOccupied()
+{
+    return lowerBoundOccupied;
+}
+
+void Node::setlowerBoundUnoccupied(double value)
+{
+    lowerBoundUnoccupied = value;
+}
+
+double Node::getLowerBoundUnoccupied()
+{
+    return lowerBoundUnoccupied;
+}
+
+void setOccupancy(int value)
+{
+    if (value == 1)
+    {
+        occupancy = 1;
+        L = getLowerBoundOccupied();
+    }
+    else if (value == 0)
+    {
+        occupancy = 0;
+        L = getLowerBoundUnoccupied();
+    }
 }

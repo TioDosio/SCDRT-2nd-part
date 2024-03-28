@@ -1,6 +1,6 @@
 #include <iostream>
 #include <boost/asio.hpp>
-#include "funcs.h"
+#include "aux/funcs.h"
 
 using namespace boost::asio;
 
