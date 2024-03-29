@@ -164,7 +164,7 @@ inline void communicationLoop()
       comm.acknowledge_loop();
     }
     else
-    // {
+    {
       while (comm.IsMsgAvailable()) // Check if something has been received
       {
         can_frame canMsgRx;
@@ -212,7 +212,6 @@ inline void communicationLoop()
     flag_temp = false;
   }
 }
-
 
 void ref_change(float value)
 {
