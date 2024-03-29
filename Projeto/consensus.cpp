@@ -13,13 +13,12 @@ void Node::initializeNode(double K[], int index, double o)
         d_av[i] = 0;
         lambda[i] = 0;
         k[i] = K[i];
-        c[i] = (i == index) ? cost : 0;
+        c[i] = (i == index) ? 1 : 0; // MUDAR PARA O CUSTO
     }
     n = k[0] * k[0] + k[1] * k[1] + k[2] * k[2];
     m = n - k[index] * k[index];
     this->o = o;
     L = getLowerBoundUnoccupied(); // mudar???
-    c = 1;
 }
 
 double Node::evaluateCost(double d[])

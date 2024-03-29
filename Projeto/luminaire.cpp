@@ -71,7 +71,7 @@ void luminaire::Compute_avg(float h, float lux, float reference)
   addAvgs(energy, visibility, flicker);
 }
 
-inline float luminaire::lux_to_volt(float lux)
+float luminaire::lux_to_volt(float lux)
 {
   float resistance = pow(10, (m * log10(lux) + offset_R_Lux));
   return (3.3 * 10000.0) / (resistance + 10000.0); // Mudar vcc para variavel

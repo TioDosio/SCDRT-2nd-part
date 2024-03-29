@@ -5,6 +5,7 @@
 #include <set>   // std::set
 #include <queue> // std::queue
 #include "extrafunctions.h"
+#include "luminaire.h"
 
 class communication
 {
@@ -16,19 +17,22 @@ class communication
     can_frame last_msg_sent;
     int last_msg_counter;
     float light_off, light_on;
+    float *desk_array;
     uint8_t this_pico_flash_id[8], node_address;
-    bool is_calibrated{false};
+    bool is_calibrated;
     long time_ack;
     MCP2515::ERROR err;
     MCP2515 can0{spi0, 17, 19, 16, 18, 10000000};
+    luminaire my_desk;
 
 public:
-    explicit communication();
+    explicit communication(luminaire _my_desk);
     ~communication(){};
     int find_desk();
     void acknowledge_loop();
     void calibration_msg(int dest_desk, char type);
     void msg_received_connection(can_frame canMsgRx);
+    void msg_received_calibration(can_frame canMsgRx);
     void msg_received_consensus(can_frame canMsgRx);
     void msg_received_ack(can_frame canMsgRx);
     void consensus_msg(double d[3]);
@@ -38,7 +42,10 @@ public:
     void resend_last_msg();
     void connection_msg(char type);
     void ack_msg(can_frame orig_msg);
-
+    void cross_gains();
+    void Gain();
+    void new_calibration();
+    void delay_manual(unsigned long time);
     // Getters
 
     long time_ack_get()
@@ -169,7 +176,17 @@ public:
 
     void ReadMsg(can_frame *msg)
     {
-        can0.readMessage(msg);
+        err = can0.readMessage(msg);
+    }
+
+    void sendMsg(can_frame *msg)
+    {
+        err = can0.sendMessage(msg);
+    }
+
+    MCP2515::ERROR getError()
+    {
+        return err;
     }
 };
 

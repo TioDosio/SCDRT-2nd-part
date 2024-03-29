@@ -20,7 +20,7 @@ luminaire my_desk{-0.89, log10(225000) - (-0.89), 0.0158}; // m, b(offset), Pmax
 float read_adc;
 bool debbuging = false;
 
-communication comm;
+communication comm{my_desk};
 
 // TIMERS AND INTERRUPTS
 struct repeating_timer timer;
@@ -50,7 +50,7 @@ int maxiter = 100;
 double otherD[2][3];
 double K[3][3];
 
-bool flag_temp = false; // RODRIGO COIMBRA!!!!!!!!!!!!!!!!!!!!!!!!!!!
+bool flag_temp = false; // TODO
 
 enum consensusStage : uint8_t
 {
@@ -66,8 +66,6 @@ void setup()
   analogReadResolution(12);    // default is 10
   analogWriteFreq(60000);      // 60KHz, about max
   analogWriteRange(DAC_RANGE); // 100% duty cycle
-  // Gain measurement at the beginning of the program
-  Gain();
   add_repeating_timer_ms(-10, my_repeating_timer_callback, NULL, &timer);
 }
 
@@ -147,7 +145,7 @@ inline void communicationLoop()
       my_desk.setDeskNumber(comm.find_desk());
       comm.connection_msg('A');
       flag_temp = true; // TODO CONECTAR PARA QUALQUER NUM DE DESKS
-      // TODO Confirmar mensagens de W N antes de correr o new_calibration
+      // TODO Confirmar mensagens de e N antes de correr o new_calibration
     }
     else
     {
@@ -166,12 +164,12 @@ inline void communicationLoop()
       comm.acknowledge_loop();
     }
     else
-    {
+    // {
       while (comm.IsMsgAvailable()) // Check if something has been received
       {
         can_frame canMsgRx;
         comm.ReadMsg(&canMsgRx);
-        if (canMsgRx.data[2] == comm.int_to_char_msg(desk) || canMsgRx.data[2] == comm.int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
+        if (canMsgRx.data[2] == comm.int_to_char_msg(my_desk.getDeskNumber()) || canMsgRx.data[2] == comm.int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
         {
           comm.add_msg_queue(canMsgRx); // Put all the messages in the queue
         }
@@ -200,79 +198,21 @@ inline void communicationLoop()
 
   time_now = millis();
   // RESEND LAST MESSAGE IF NO ACK RECEIVED
-  if ((time_now - time_ack) > TIME_ACK && !missing_ack.empty())
+  if ((time_now - comm.time_ack_get()) > TIME_ACK && !comm.isMissingAckEmpty())
   {
-
-    Serial.printf("Se %lu %lu\n", time_now, time_ack);
-    resend_last_msg();
-    time_ack = millis();
+    comm.resend_last_msg();
+    comm.time_ack_set(millis());
   }
-  if (flag_temp && (comm.desks_connected.size() + 1) == 3)
+  if (flag_temp && (comm.getNumDesks()) == 3) // Initialize the calibration when all the desks are connected
   {
     if (my_desk.getDeskNumber() == 3)
     {
-      new_calibration();
+      comm.new_calibration();
     }
     flag_temp = false;
   }
-  if (Serial.available() > 0) // TO DELETE
-  {
-    char c = Serial.read();
-    if (comm.isConnected())
-    {
-      Serial.printf("Conectadas a mim:");
-      for (const int &elem : comm.desks_connected)
-      {
-        Serial.printf(" %d,", elem);
-      }
-      Serial.printf("\nTime to connect -> %d\n", comm.getTimeToConnect());
-      if (comm.getIsCalibrated())
-      {
-        for (int i = 1; i <= comm.desks_connected.size() + 1; i++) // ??????????????????? de onde e que isto vem
-        {
-          Serial.printf("Desk %d -> %f\n", i, desk_array[i - 1]); // ALPHA
-        }
-      }
-    }
-    else
-    {
-      Serial.printf("Not connected yet\n");
-    }
-  }
 }
 
-void new_calibration()
-{
-  desk_array = (float *)malloc((desks_connected.size() + 1) * sizeof(float)); // array of desks
-  if (desks_connected.empty())
-  {
-    Gain();
-    comm.setIsCalibrated(true);
-  }
-  else
-  {
-    comm.calibration_msg(0, 'B');
-    analogWrite(LED_PIN, 0);
-  }
-}
-
-// Funções extras
-void Gain()
-{
-  Serial.println("Calibrating the gain of the system:");
-  analogWrite(LED_PIN, 0);
-  delay(2500);
-  float y1 = adc_to_lux(digital_filter(50.0));
-  analogWrite(LED_PIN, 4095);
-  delay(2500);
-  float y2 = adc_to_lux(digital_filter(50.0));
-  analogWrite(LED_PIN, 0);
-  delay(2500);
-  float Gain = (y2 - y1);
-  my_desk.setGain(Gain);
-  my_pid.set_b(my_desk.getRefVolt() / my_desk.getRef(), Gain);
-  Serial.printf("The static gain of the system is %f [LUX/DC]\n", Gain);
-}
 
 void ref_change(float value)
 {
@@ -303,7 +243,7 @@ void runConsensus()
   if (comm.getNumDesks() == 3)
   {
     // NODE INITIALIZATION
-    node.initializeNode(K[my_desk.getDeskNumber() - 1], my_desk.getDeskNumber() - 1, my_desk.getExternalLight(my_desk.getDeskNumber() - 1));
+    node.initializeNode(K[my_desk.getDeskNumber() - 1], my_desk.getDeskNumber() - 1, my_desk.getExternalLight()); // TODO VER EXTERNAL LIGHT
 
     // RUN CONSENSUS ALGORITHM
     consensusRunning = true;
@@ -332,7 +272,7 @@ void ConsensusLoop()
     }
     case consensusStage::CONSENSUSWAIT:
     {
-      if (true) // received all neighbors d values with acks (TO DO)
+      if (true) // TODO received all neighbors d values with acks (TO DO)
       {
         // COMPUTATION OF THE AVERAGE
         double temp;

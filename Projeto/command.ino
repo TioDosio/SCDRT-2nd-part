@@ -521,35 +521,19 @@ void real_time_stream_of_data(unsigned long time, float lux)
   }
 }
 
-/*void send_to_others(const char *commands, int this_desk, int size)
+void send_to_others(const String &command)
 {
-  char msg[8] = {};
-  char aux;
-  for (int i = 0; i < size; i++)
-  {
-    msg[i] = commands[i];
-  }
-  while (Serial.available() > 0 && i < 9)
-  {
-    aux = Serial.read();
-    if (aux == '\0')
-    {
-      break;
-    }
-    msg[i] = aux;
-    i++;
-  }
+  int this_desk = my_desk.getDeskNumber(); // Declare and initialize this_desk variable
   struct can_frame canMsgTx;
-  canMsgTx.can_id = this_desk;
+  canMsgTx.can_id = this_desk; // Replace this_desk with the correct value obtained from my_desk.getDeskNumber()
   canMsgTx.can_dlc = 8;
   for (int i = 0; i < 8; i++)
   {
-    canMsgTx.data[i] = msg[i];
+    canMsgTx.data[i] = command[i];
   }
-
-  err = can0.sendMessage(&canMsgTx);
-  if (err != MCP2515::ERROR_OK)
+  comm.sendMsg(&canMsgTx);
+  if (comm.getError() != MCP2515::ERROR_OK)
   {
-    Serial.printf("Error sending message: %s\n", err);
+    Serial.printf("Error sending message \n");
   }
-}*/
+}
