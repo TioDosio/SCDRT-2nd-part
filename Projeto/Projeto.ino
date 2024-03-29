@@ -1,13 +1,13 @@
 #include "pid.h"
 #include "command.h"
-#include "lumminaire.h"
+#include "luminaire.h"
 #include "consensus.h"
-#include "communication.h"
+#include "Communication.h"
 #include "extrafunctions.h"
 
 #define TIME_ACK 2500
 
-// Lumminaire
+// luminaire
 const int LED_PIN = 15;
 const int DAC_RANGE = 4096;
 const float VCC = 3.3;
@@ -15,7 +15,7 @@ const float adc_conv = 4095.0 / VCC;
 const float dutyCycle_conv = 4095.0 / 100.0;
 pid my_pid{0.01, 0.15, 1.5}; // h, k, Tt
 // (float _h, float _K, float Tt_,float b_,float Ti_, float Td_, float N_)
-lumminaire my_desk{-0.89, log10(225000) - (-0.89), 0.0158}; // m, b(offset), Pmax, desk_number
+luminaire my_desk{-0.89, log10(225000) - (-0.89), 0.0158}; // m, b(offset), Pmax, desk_number
 // system my_desk{float _m, float _offset_R_Lux, float _Pmax, unsigned short _desk_number}
 float read_adc;
 bool debbuging = false;
@@ -50,6 +50,8 @@ int maxiter = 100;
 double otherD[2][3];
 double K[3][3];
 
+bool flag_temp = false; // RODRIGO COIMBRA!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 enum consensusStage : uint8_t
 {
   CONSENSUSITERATON,
@@ -71,15 +73,15 @@ void setup()
 
 void setup1()
 {
-  flash_get_unique_id(this_pico_flash_id);
-  node_address = this_pico_flash_id[5];
-  can0.reset();
-  can0.setBitrate(CAN_1000KBPS);
-  can0.setNormalMode();
+  flash_get_unique_id(comm.getAllThisPicoFlashId());
+  comm.setNodeAddress(comm.getThisPicoFlashId(5));
+  comm.resetCan0();
+  comm.setCan0Bitrate();
+  comm.setCan0NormalMode();
   gpio_set_irq_enabled_with_callback(interruptPin, GPIO_IRQ_EDGE_FALL, true, &read_interrupt);
 
   // Connection timers
-  randomSeed(node_address);
+  randomSeed(comm.getNodeAddress());
   comm.add2TimeToConnect(random(21) * 100); // To ensure that the nodes don't connect at the same time
   comm.setConnectTime(millis());
 }
@@ -142,7 +144,7 @@ inline void communicationLoop()
     if (time_now - comm.getConnectTime() > comm.getTimeToConnect())
     {
       comm.setConnected(true);
-      my_desk.setDeskNumber(find_desk());
+      my_desk.setDeskNumber(comm.find_desk());
       comm.connection_msg('A');
       flag_temp = true; // TODO CONECTAR PARA QUALQUER NUM DE DESKS
       // TODO Confirmar mensagens de W N antes de correr o new_calibration
@@ -165,34 +167,33 @@ inline void communicationLoop()
     }
     else
     {
-      while (can0.checkReceive()) // Check if something has been received
+      while (comm.IsMsgAvailable()) // Check if something has been received
       {
         can_frame canMsgRx;
-        can0.readMessage(&canMsgRx);
-        if (canMsgRx.data[2] == int_to_char_msg(desk) || canMsgRx.data[2] == int_to_char_msg(0))
+        comm.ReadMsg(&canMsgRx);
+        if (canMsgRx.data[2] == comm.int_to_char_msg(desk) || canMsgRx.data[2] == comm.int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
         {
-          command_queue.push(canMsgRx);
+          comm.add_msg_queue(canMsgRx); // Put all the messages in the queue
         }
       }
-      while (!command_queue.empty())
+      while (!comm.isMissingAckEmpty())
       {
         can_frame canMsgRx;
-        canMsgRx = command_queue.front();
+        canMsgRx = comm.get_msg_queue();
         switch (canMsgRx.data[0])
         {
         case 'W':
-          msg_received_connection(canMsgRx);
+          comm.msg_received_connection(canMsgRx);
           break;
         case 'C':
-          msg_received_calibration(canMsgRx);
+          comm.msg_received_calibration(canMsgRx);
           break;
         case 'S':
-          msg_received_consensus(canMsgRx);
+          comm.msg_received_consensus(canMsgRx);
           break;
         default:
           break;
         }
-        command_queue.pop();
       }
     }
   }
@@ -206,9 +207,9 @@ inline void communicationLoop()
     resend_last_msg();
     time_ack = millis();
   }
-  if (flag_temp && (desks_connected.size() + 1) == 3)
+  if (flag_temp && (comm.desks_connected.size() + 1) == 3)
   {
-    if (desk == 3)
+    if (my_desk.getDeskNumber() == 3)
     {
       new_calibration();
     }
@@ -217,20 +218,19 @@ inline void communicationLoop()
   if (Serial.available() > 0) // TO DELETE
   {
     char c = Serial.read();
-    if (is_connected)
+    if (comm.isConnected())
     {
-      Serial.printf("Desk Number: %d\n", desk);
       Serial.printf("Conectadas a mim:");
-      for (const int &elem : desks_connected)
+      for (const int &elem : comm.desks_connected)
       {
         Serial.printf(" %d,", elem);
       }
-      Serial.printf("\nTime to connect -> %d\n", time_to_connect);
-      if (is_calibrated)
+      Serial.printf("\nTime to connect -> %d\n", comm.getTimeToConnect());
+      if (comm.getIsCalibrated())
       {
-        for (int i = 1; i <= desks_connected.size() + 1; i++)
+        for (int i = 1; i <= comm.desks_connected.size() + 1; i++) // ??????????????????? de onde e que isto vem
         {
-          Serial.printf("Desk %d -> %f\n", i, desk_array[i - 1]);
+          Serial.printf("Desk %d -> %f\n", i, desk_array[i - 1]); // ALPHA
         }
       }
     }
@@ -241,6 +241,20 @@ inline void communicationLoop()
   }
 }
 
+void new_calibration()
+{
+  desk_array = (float *)malloc((desks_connected.size() + 1) * sizeof(float)); // array of desks
+  if (desks_connected.empty())
+  {
+    Gain();
+    comm.setIsCalibrated(true);
+  }
+  else
+  {
+    comm.calibration_msg(0, 'B');
+    analogWrite(LED_PIN, 0);
+  }
+}
 
 // Funções extras
 void Gain()
@@ -258,18 +272,6 @@ void Gain()
   my_desk.setGain(Gain);
   my_pid.set_b(my_desk.getRefVolt() / my_desk.getRef(), Gain);
   Serial.printf("The static gain of the system is %f [LUX/DC]\n", Gain);
-}
-
-// Média de medições, para reduzir noise;
-float digital_filter(float value)
-{
-  float total_adc;
-  int j;
-  for (j = 0, total_adc = 0; j < value; j += 1)
-  {
-    total_adc += analogRead(A0);
-  }
-  return total_adc / value;
 }
 
 void ref_change(float value)
@@ -296,12 +298,12 @@ float Tau(float value)
   }
 }
 
-int runConsensus()
+void runConsensus()
 {
   if (comm.getNumDesks() == 3)
   {
     // NODE INITIALIZATION
-    node.initializeNode(K[luminaire.getDeskNumber() - 1], luminaire.getDeskNumber() - 1, luminaire.getExternalLight(luminaire.getDeskNumber() - 1));
+    node.initializeNode(K[my_desk.getDeskNumber() - 1], my_desk.getDeskNumber() - 1, my_desk.getExternalLight(my_desk.getDeskNumber() - 1));
 
     // RUN CONSENSUS ALGORITHM
     consensusRunning = true;
@@ -322,7 +324,7 @@ void ConsensusLoop()
       // COMPUTATION OF THE PRIMAL SOLUTIONS
       node.consensusIterate();
 
-      consensus_msg(node.getD()); // Send the d values to the neighbors
+      comm.consensus_msg(node.getD()); // Send the d values to the neighbors
 
       consensusStage = consensusStage::CONSENSUSWAIT;
       otherD[3][3] = {0};
@@ -330,7 +332,7 @@ void ConsensusLoop()
     }
     case consensusStage::CONSENSUSWAIT:
     {
-      if (consensus_acknoledged) // received all neighbors d values with acks
+      if (true) // received all neighbors d values with acks (TO DO)
       {
         // COMPUTATION OF THE AVERAGE
         double temp;

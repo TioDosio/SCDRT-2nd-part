@@ -1,5 +1,6 @@
-#include "lumminaire.h"
-lumminaire::lumminaire(float _m, float _offset_R_Lux, float _Pmax, int _desk_number)
+#include "luminaire.h"
+
+luminaire::luminaire(float _m, float _offset_R_Lux, float _Pmax, int _desk_number)
     : m{_m}, offset_R_Lux{_offset_R_Lux}, Pmax{_Pmax}, G{0}, desk_number{_desk_number},
       occupied{false}, lux_flag{false}, duty_flag{false}, ignore_reference{false}, buffer_full{false},
       idx_buffer{0}, Energy_avg{0.0}, counter_avg{0}, on{true}, ref_occupied{20.0}, ref_unoccupied{5.0}
@@ -7,7 +8,7 @@ lumminaire::lumminaire(float _m, float _offset_R_Lux, float _Pmax, int _desk_num
   setRef(ref_unoccupied);
 }
 
-void lumminaire::store_buffer(float lux)
+void luminaire::store_buffer(float lux)
 {
   last_minute_buffer_d[idx_buffer] = DutyCycle;
   last_minute_buffer_l[idx_buffer] = lux;
@@ -19,7 +20,7 @@ void lumminaire::store_buffer(float lux)
   }
 }
 
-void lumminaire::Compute_avg(float h, float lux, float reference)
+void luminaire::Compute_avg(float h, float lux, float reference)
 {
 
   // visibility
@@ -70,8 +71,8 @@ void lumminaire::Compute_avg(float h, float lux, float reference)
   addAvgs(energy, visibility, flicker);
 }
 
-inline float lux_to_volt(float lux)
+inline float luminaire::lux_to_volt(float lux)
 {
-  float resistance = pow(10, (my_desk.getM() * log10(lux) + my_desk.getOffset_R_Lux()));
-  return (VCC * 10000.0) / (resistance + 10000.0);
+  float resistance = pow(10, (m * log10(lux) + offset_R_Lux));
+  return (3.3 * 10000.0) / (resistance + 10000.0); // Mudar vcc para variavel
 }

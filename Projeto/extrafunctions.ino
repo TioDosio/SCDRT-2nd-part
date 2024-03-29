@@ -1,6 +1,7 @@
 #include "extrafunctions.h"
 
-inline void ChangeLEDValue(int value) {
+inline void ChangeLEDValue(int value)
+{
   analogWrite(LED_PIN, value);
 }
 
@@ -26,4 +27,16 @@ inline float volt_to_lux(float volt)
 {
   float LDR_resistance = (VCC * 10000.0) / volt - 10000.0;
   return pow(10, (log10(LDR_resistance) - my_desk.getOffset_R_Lux()) / (my_desk.getM()));
+}
+
+// Média de medições, para reduzir noise;
+float digital_filter(float value)
+{
+  float total_adc;
+  int j;
+  for (j = 0, total_adc = 0; j < value; j += 1)
+  {
+    total_adc += analogRead(A0);
+  }
+  return total_adc / value;
 }

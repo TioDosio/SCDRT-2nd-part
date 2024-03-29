@@ -1,20 +1,20 @@
-#ifndef LUMMINAIRE_H
-#define LUMMINAIRE_H
+#ifndef luminaire_H
+#define luminaire_H
 #define buffer_size 6000
 #include <cmath>
 
-class lumminaire
+class luminaire
 {
   float m, offset_R_Lux, Pmax, DutyCycle, G, ref_unoccupied, ref_occupied, ref, ref_volt;
   float last_minute_buffer_d[buffer_size], last_minute_buffer_l[buffer_size];
   bool occupied, lux_flag, duty_flag, ignore_reference, buffer_full, on;
   int desk_number, idx_buffer;
-  double Energy_avg, visibility_err, flicker_err;
+  double Energy_avg, visibility_err, flicker_err, o;
   unsigned long counter_avg;
 
 public:
-  explicit lumminaire(float _m, float _offset_R_Lux, float _Pmax, int _desk_number = 1);
-  ~lumminaire(){};
+  explicit luminaire(float _m, float _offset_R_Lux, float _Pmax, int _desk_number = 1);
+  ~luminaire(){};
   void store_buffer(float lux);
   void Compute_avg(float h, float lux, float reference);
   float lux_to_volt(float lux);
@@ -26,11 +26,11 @@ public:
     ref_volt = lux_to_volt(ref);
   }
 
-
   void setDeskNumber(int value)
   {
     desk_number = value;
   }
+
   void setOccupied(bool value)
   {
     occupied = value;
@@ -74,6 +74,12 @@ public:
   }
 
   // Getters
+
+  double getExternalLight() // VER MELHOR FORMA DE FAZER ISTO
+  {
+    return o;
+  }
+
   float getRef() const
   {
     return ref;
@@ -185,4 +191,4 @@ public:
   }
 };
 
-#endif // LUMMINAIRE_H
+#endif // luminaire_H

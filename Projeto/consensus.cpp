@@ -18,7 +18,7 @@ void Node::initializeNode(double K[], int index, double o)
     n = k[0] * k[0] + k[1] * k[1] + k[2] * k[2];
     m = n - k[index] * k[index];
     this->o = o;
-    L = getLowerBoundUnoccupied();
+    L = getLowerBoundUnoccupied(); // mudar???
     c = 1;
 }
 
@@ -300,7 +300,7 @@ double Node::getLowerBoundUnoccupied()
     return lowerBoundUnoccupied;
 }
 
-void setOccupancy(int value)
+void Node::setOccupancy(int value)
 {
     if (value == 1)
     {

@@ -1,6 +1,3 @@
-
-
-
 // MESSAGES
 MCP2515::ERROR err;
 MCP2515 can0{spi0, 17, 19, 16, 18, 10000000};

@@ -8,12 +8,17 @@
 
 class communication
 {
+    std::queue<can_frame> command_queue;
     unsigned long connect_time;
     std::set<int> desks_connected, missing_ack;
     bool is_connected, consensus_acknoledged;
     int time_to_connect;
+    can_frame last_msg_sent;
+    int last_msg_counter;
     float light_off, light_on;
     uint8_t this_pico_flash_id[8], node_address;
+    bool is_calibrated{false};
+    long time_ack;
     MCP2515::ERROR err;
     MCP2515 can0{spi0, 17, 19, 16, 18, 10000000};
 
@@ -22,11 +27,40 @@ public:
     ~communication(){};
     int find_desk();
     void acknowledge_loop();
-    void msg_received_consensus();
+    void calibration_msg(int dest_desk, char type);
+    void msg_received_connection(can_frame canMsgRx);
+    void msg_received_consensus(can_frame canMsgRx);
     void msg_received_ack(can_frame canMsgRx);
     void consensus_msg(double d[3]);
+    void confirm_msg(can_frame ack_msg);
+    int char_msg_to_int(char msg);
+    char int_to_char_msg(int msg);
+    void resend_last_msg();
+    void connection_msg(char type);
+    void ack_msg(can_frame orig_msg);
 
     // Getters
+
+    long time_ack_get()
+    {
+        return time_ack;
+    }
+
+    void resetCan0()
+    {
+        can0.reset();
+    }
+
+    void setCan0Bitrate()
+    {
+        can0.setBitrate(CAN_1000KBPS);
+    }
+
+    void setCan0NormalMode()
+    {
+        can0.setNormalMode();
+    }
+
     unsigned long getConnectTime() const
     {
         return connect_time;
@@ -50,6 +84,11 @@ public:
     uint8_t getThisPicoFlashId(int value)
     {
         return this_pico_flash_id[value];
+    }
+
+    uint8_t *getAllThisPicoFlashId()
+    {
+        return this_pico_flash_id;
     }
 
     uint8_t getNodeAddress() const
@@ -91,6 +130,46 @@ public:
     void setConsensusAck(bool ack)
     {
         consensus_acknoledged = ack;
+    }
+
+    bool getIsCalibrated()
+    {
+        return is_calibrated;
+    }
+
+    void setIsCalibrated(bool cal)
+    {
+        is_calibrated = cal;
+    }
+
+    void time_ack_set(long time)
+    {
+        time_ack = time;
+    }
+
+    // Queue
+    void add_msg_queue(can_frame msg)
+    {
+        command_queue.push(msg);
+    }
+
+    can_frame get_msg_queue()
+    {
+        can_frame msg = command_queue.front();
+        command_queue.pop();
+        return msg;
+    }
+
+    // Can0
+
+    bool IsMsgAvailable()
+    {
+        return can0.checkReceive();
+    }
+
+    void ReadMsg(can_frame *msg)
+    {
+        can0.readMessage(msg);
     }
 };
 

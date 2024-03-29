@@ -25,7 +25,7 @@ private:
     void updateBest(double d_best[], double d[], double &cost_best, double cost);
 
 public:
-    void initializeNode(double K[], int index, double cost, double lux, double o, double rho);
+    void initializeNode(double K[], int index, double o);
     void consensusIterate();
     bool checkConvergence();
     double *getDav();
@@ -40,6 +40,11 @@ public:
     double getRho();
     double *getLastD();
     void copyArray(double dest[], double src[]);
+    void setLowerBoundOccupied(double value);
+    double getLowerBoundOccupied();
+    void setlowerBoundUnoccupied(double value);
+    double getLowerBoundUnoccupied();
+    void setOccupancy(int value);
 };
 
 #endif
