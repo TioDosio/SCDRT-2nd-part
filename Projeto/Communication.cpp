@@ -2,7 +2,7 @@
 #include <cstring>
 #include <Arduino.h>
 
-communication::communication(luminaire _my_desk) : my_desk{_my_desk}, is_connected{false}, time_to_connect{500}, consensus_acknoledged{false}, light_off{0.0}, light_on{0.0}, is_calibrated{false}, desk_array{NULL}
+communication::communication(luminaire *_my_desk) : my_desk{_my_desk}, is_connected{false}, time_to_connect{500}, consensus_acknoledged{false}, light_off{0.0}, light_on{0.0}, is_calibrated{false}, coupling_gains{NULL}
 {
 }
 
@@ -59,10 +59,10 @@ void communication::msg_received_ack(can_frame canMsgRx)
     break;
     case 'R':
     {
-      if (my_desk.getDeskNumber() != getNumDesks())
+      if (my_desk->getDeskNumber() != getNumDesks())
       {
         ChangeLEDValue(0);
-        calibration_msg(my_desk.getDeskNumber() + 1, 'S');
+        calibration_msg(my_desk->getDeskNumber() + 1, 'S');
       }
       else
       {
@@ -90,7 +90,7 @@ void communication::msg_received_ack(can_frame canMsgRx)
 void communication::ack_msg(can_frame orig_msg)
 {
   struct can_frame canMsgTx;
-  canMsgTx.can_id = my_desk.getDeskNumber();
+  canMsgTx.can_id = my_desk->getDeskNumber();
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = 'A';
   for (int i = 0; i < 6; i++)
@@ -110,7 +110,7 @@ void communication::ack_msg(can_frame orig_msg)
 void communication::connection_msg(char type)
 {
   struct can_frame canMsgTx;
-  canMsgTx.can_id = my_desk.getDeskNumber();
+  canMsgTx.can_id = my_desk->getDeskNumber();
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = 'W';
   canMsgTx.data[1] = type;
@@ -131,7 +131,7 @@ void communication::connection_msg(char type)
 void communication::calibration_msg(int dest_desk, char type)
 {
   struct can_frame canMsgTx;
-  canMsgTx.can_id = my_desk.getDeskNumber();
+  canMsgTx.can_id = my_desk->getDeskNumber();
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = 'C';
   canMsgTx.data[1] = type;
@@ -161,11 +161,11 @@ void communication::msg_received_calibration(can_frame canMsgRx)
   case 'B': // Quando lerem o begin desligam as luzes
   {
     // TODO : LIMPAR TODOS OS OUTRAS MENSAGENS DE CALIBRATIONS
-    if (desk_array != NULL)
+    if (coupling_gains != NULL)
     {
-      free(desk_array);
+      free(coupling_gains);
     }
-    desk_array = (float *)malloc((getNumDesks()) * sizeof(float)); // array of desks
+    coupling_gains = (double *)malloc((getNumDesks()) * sizeof(double)); // array of desks
     ack_msg(canMsgRx);
     ChangeLEDValue(0);
   }
@@ -186,12 +186,12 @@ void communication::msg_received_calibration(can_frame canMsgRx)
   {
     light_on = adc_to_lux(digital_filter(50.0));
     ack_msg(canMsgRx);
-    desk_array[canMsgRx.can_id - 1] = light_on - light_off;
+    coupling_gains[canMsgRx.can_id - 1] = light_on - light_off;
   }
   break;
   case 'S':
   {
-    if (char_msg_to_int(canMsgRx.data[2]) == my_desk.getDeskNumber())
+    if (char_msg_to_int(canMsgRx.data[2]) == my_desk->getDeskNumber())
     {
       cross_gains();
     }
@@ -210,10 +210,10 @@ void communication::msg_received_calibration(can_frame canMsgRx)
 void communication::cross_gains()
 {
   ChangeLEDValue(4095);
-  delay_manual(2000);
+  delay_manual(3000);
   calibration_msg(0, 'R');
   light_on = adc_to_lux(digital_filter(50.0));
-  desk_array[my_desk.getDeskNumber() - 1] = light_on - light_off;
+  coupling_gains[my_desk->getDeskNumber() - 1] = light_on - light_off;
 }
 
 void communication::msg_received_connection(can_frame canMsgRx)
@@ -254,7 +254,7 @@ void communication::msg_received_connection(can_frame canMsgRx)
 
 void communication::new_calibration()
 {
-  desk_array = (float *)malloc((desks_connected.size() + 1) * sizeof(float)); // array of desks
+  coupling_gains = (double *)malloc((desks_connected.size() + 1) * sizeof(double)); // array of desks
   if (desks_connected.empty())
   {
     Gain();
@@ -277,7 +277,7 @@ void communication::Gain()
   light_on = adc_to_lux(digital_filter(50.0));
   ChangeLEDValue(0);
   delay_manual(2500);
-  desk_array[0] = (light_on - light_off);
+  coupling_gains[0] = (light_on - light_off);
 }
 
 // CONSENSUS
@@ -296,7 +296,7 @@ void communication::msg_received_consensus(can_frame canMsgRx)
 void communication::consensus_msg(double d[3])
 {
   struct can_frame canMsgTx;
-  canMsgTx.can_id = my_desk.getDeskNumber();
+  canMsgTx.can_id = my_desk->getDeskNumber();
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = 'S';
   canMsgTx.data[1] = 'D';
@@ -349,10 +349,10 @@ void communication::resend_last_msg()
     missing_ack = desks_connected;
   }
   err = can0.sendMessage(&last_msg_sent);
-  if (err != MCP2515::ERROR_OK)
-  {
-    // MESSAGE NOT SENT
-  }
+  // / if (err != MCP2515::ERROR_OK)
+  // {
+  //   // MESSAGE NOT SENT
+  // }
 }
 
 void communication::delay_manual(unsigned long delay)

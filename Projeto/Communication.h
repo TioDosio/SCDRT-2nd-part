@@ -16,17 +16,16 @@ class communication
     int time_to_connect;
     can_frame last_msg_sent;
     int last_msg_counter;
-    float light_off, light_on;
-    float *desk_array;
-    uint8_t this_pico_flash_id[8], node_address;
+    double light_off, light_on;
+    double *coupling_gains;
     bool is_calibrated;
     long time_ack;
     MCP2515::ERROR err;
     MCP2515 can0{spi0, 17, 19, 16, 18, 10000000};
-    luminaire my_desk;
+    luminaire *my_desk;
 
 public:
-    explicit communication(luminaire _my_desk);
+    explicit communication(luminaire *_my_desk);
     ~communication(){};
     int find_desk();
     void acknowledge_loop();
@@ -46,8 +45,23 @@ public:
     void Gain();
     void new_calibration();
     void delay_manual(unsigned long time);
+
     // Getters
 
+    double getExternalLight() const
+    {
+        return light_off;
+    }
+
+    double getCouplingGain(int index)
+    {
+        return coupling_gains[index];
+    }
+
+    double *getCouplingGains()
+    {
+        return coupling_gains;
+    }
     long time_ack_get()
     {
         return time_ack;
@@ -88,21 +102,6 @@ public:
         return time_to_connect;
     }
 
-    uint8_t getThisPicoFlashId(int value)
-    {
-        return this_pico_flash_id[value];
-    }
-
-    uint8_t *getAllThisPicoFlashId()
-    {
-        return this_pico_flash_id;
-    }
-
-    uint8_t getNodeAddress() const
-    {
-        return node_address;
-    }
-
     inline bool isMissingAckEmpty() const
     {
         return missing_ack.empty();
@@ -122,11 +121,6 @@ public:
     void add2TimeToConnect(int time)
     {
         time_to_connect += time;
-    }
-
-    void setNodeAddress(uint8_t address)
-    {
-        node_address = address;
     }
 
     bool getConsensusAck()
@@ -167,6 +161,11 @@ public:
         return msg;
     }
 
+    bool isQueueEmpty()
+    {
+        return command_queue.empty();
+    }
+
     // Can0
 
     bool IsMsgAvailable()
@@ -187,6 +186,13 @@ public:
     MCP2515::ERROR getError()
     {
         return err;
+    }
+
+    // getDeskconnected
+
+    std::set<int> getDesksConnected()
+    {
+        return desks_connected;
     }
 };
 

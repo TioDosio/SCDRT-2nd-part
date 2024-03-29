@@ -20,7 +20,7 @@ luminaire my_desk{-0.89, log10(225000) - (-0.89), 0.0158}; // m, b(offset), Pmax
 float read_adc;
 bool debbuging = false;
 
-communication comm{my_desk};
+communication comm{&my_desk};
 
 // TIMERS AND INTERRUPTS
 struct repeating_timer timer;
@@ -71,22 +71,29 @@ void setup()
 
 void setup1()
 {
-  flash_get_unique_id(comm.getAllThisPicoFlashId());
-  comm.setNodeAddress(comm.getThisPicoFlashId(5));
   comm.resetCan0();
   comm.setCan0Bitrate();
   comm.setCan0NormalMode();
   gpio_set_irq_enabled_with_callback(interruptPin, GPIO_IRQ_EDGE_FALL, true, &read_interrupt);
 
   // Connection timers
-  randomSeed(comm.getNodeAddress());
-  comm.add2TimeToConnect(random(21) * 100); // To ensure that the nodes don't connect at the same time
+  int seed = 0;
+  for (int i = 0; i < 5; i++)
+  {
+    seed += analogRead(A0);
+  }
+  randomSeed(seed);
+  comm.add2TimeToConnect(random(51) * 75); // To ensure that the nodes don't connect at the same time
   comm.setConnectTime(millis());
 }
 
 void loop()
 { // the loop function runs cyclically
-  controllerLoop();
+  read_command();
+  if (comm.getIsCalibrated())
+  {
+    controllerLoop();
+  }
 }
 
 void loop1()
@@ -156,6 +163,7 @@ inline void communicationLoop()
       }
     }
   }
+
   if (data_available)
   {
     data_available = false;
@@ -174,7 +182,8 @@ inline void communicationLoop()
           comm.add_msg_queue(canMsgRx); // Put all the messages in the queue
         }
       }
-      while (!comm.isMissingAckEmpty())
+
+      while (!comm.isQueueEmpty())
       {
         can_frame canMsgRx;
         canMsgRx = comm.get_msg_queue();
@@ -242,7 +251,7 @@ void runConsensus()
   if (comm.getNumDesks() == 3)
   {
     // NODE INITIALIZATION
-    node.initializeNode(K[my_desk.getDeskNumber() - 1], my_desk.getDeskNumber() - 1, my_desk.getExternalLight()); // TODO VER EXTERNAL LIGHT
+    node.initializeNode(comm.getCouplingGains(), my_desk.getDeskNumber() - 1, comm.getExternalLight()); // TODO VER EXTERNAL LIGHT
 
     // RUN CONSENSUS ALGORITHM
     consensusRunning = true;

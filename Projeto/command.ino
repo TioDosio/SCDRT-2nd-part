@@ -46,6 +46,29 @@ void read_command()
         // NOT THIS DESK
       }
     }
+
+    else if (command.startsWith("a d"))
+    {
+
+      Serial.printf("Desk Number: %d\n", my_desk.getDeskNumber());
+      Serial.printf("Conectadas a mim:");
+      for (const int &elem : comm.getDesksConnected())
+      {
+        Serial.printf(" %d,", elem);
+      }
+      Serial.printf("\nTime to connect -> %d\n", comm.getTimeToConnect());
+
+      if (comm.getIsCalibrated())
+      {
+        for (int i = 1; i <= comm.getNumDesks(); i++)
+        {
+          Serial.printf("Desk %d -> %f\n", i, comm.getCouplingGain(i - 1));
+        }
+        Serial.printf("external light: %f\n", comm.getExternalLight());
+        Serial.println(comm.getCouplingGain(my_desk.getDeskNumber() - 1));
+      }
+    }
+
     else if (command.startsWith("r ")) // Set the illuminance reference of luminaire i
     {
       sscanf(command.c_str(), "r %d %f", &i, &val);
@@ -531,7 +554,7 @@ void send_to_others(const String &command)
   {
     canMsgTx.data[i] = command[i];
   }
-  comm.sendMsg(&canMsgTx);
+  // comm.sendMsg(&canMsgTx);
   if (comm.getError() != MCP2515::ERROR_OK)
   {
     Serial.printf("Error sending message \n");
