@@ -5,7 +5,8 @@
 #include "Communication.h"
 #include "extrafunctions.h"
 
-#define TIME_ACK 5000
+#define TIME_ACK 6000
+#define TIME_TO_WRITE 500
 
 // luminaire
 const int LED_PIN = 15;
@@ -87,9 +88,9 @@ void loop()
   {
     if (timer_fired)
     {
+      timer_fired = false;
       float time;
       time = millis();
-      timer_fired = false;
       float read_adc = digital_filter(20.0);
       if (my_desk.isON() && (!my_desk.isIgnoreReference()))
       {
@@ -99,9 +100,12 @@ void loop()
       float lux = adc_to_lux(read_adc);
       my_desk.Compute_avg(my_pid.get_h(), lux, my_desk.getRef());
       my_desk.store_buffer(lux);
-      read_command(read_adc);
+      if (Serial.available() > 0)
+      {
+        String command = Serial.readStringUntil('\n');
+        read_command(command, read_adc);
+      }
       real_time_stream_of_data(time / 1000, lux);
-      timer_fired = false;
     }
   }
 }
@@ -164,12 +168,10 @@ inline void communicationLoop()
     data_available = false;
     if (!comm.isMissingAckEmpty()) // Check if there are any missing acks
     {
-      Serial.printf("M ack\n");
-      comm.acknowledge_loop();
+      comm.acknowledge_loop(&node);
     }
     else
     {
-      Serial.printf("Not missing ack\n");
       while (comm.IsMsgAvailable()) // Check if something has been received
       {
         can_frame canMsgRx;
@@ -184,7 +186,6 @@ inline void communicationLoop()
       {
         can_frame canMsgRx;
         canMsgRx = comm.get_msg_queue();
-        Serial.printf("Rec: %c %c %c\n", canMsgRx.data[0], canMsgRx.data[1], canMsgRx.data[2]);
         switch (canMsgRx.data[0])
         {
         case 'W':
@@ -198,9 +199,20 @@ inline void communicationLoop()
           break;
         case 's':
           runConsensus();
-          Serial.println("Running consensus");
+          break;
+        case 'T':
+          if (node.getConsensusReady())
+          {
+            comm.consensus_msg_duty(node.getD());
+            node.setConsensusReady(false);
+          }
+          else
+          {
+            comm.add_msg_queue(canMsgRx);
+          }
           break;
         default:
+          // passar de canMsgRx.data[] para string e mandar para o read_command()
           break;
         }
       }
@@ -208,9 +220,17 @@ inline void communicationLoop()
   }
 
   time_now = millis();
+
   // RESEND LAST MESSAGE IF NO ACK RECEIVED
   if ((time_now - comm.time_ack_get()) > TIME_ACK && !comm.isMissingAckEmpty())
   {
+    Serial.printf("RESEND PORQUE NAO RECEBI ACK das desks: ");
+    for (const int &element : comm.getMissingAck())
+    {
+
+      Serial.printf("%d, ", element);
+    }
+    Serial.printf("\n");
     comm.resend_last_msg();
     comm.time_ack_set(millis());
   }
@@ -259,7 +279,6 @@ void runConsensus()
     node.setConsensusRunning(true);
     node.setConsensusIterations(0);
     consensusStage = consensusStage::CONSENSUSITERATON;
-    node.resetOtherD();
   }
   else
   {
@@ -277,16 +296,15 @@ void consensusLoop()
     {
       // COMPUTATION OF THE PRIMAL SOLUTIONS
       node.consensusIterate();
+      node.setConsensusReady(true);
 
-      comm.consensus_msg(node.getD()); // Send the d values to the neighbors
-      Serial.println("mandei S");
       consensusStage = consensusStage::CONSENSUSWAIT;
       node.resetOtherD(); // Reset the other d values
       break;
     }
     case consensusStage::CONSENSUSWAIT:
     {
-      if (comm.isMissingAckEmpty()) // TODO received all neighbors d values with acks (TO DO)
+      if (node.checkOtherDIsFull() && !node.getConsensusReady())
       {
         // COMPUTATION OF THE AVERAGE
         double temp;
@@ -297,6 +315,7 @@ void consensusLoop()
           temp = (node.getDIndex(j) + dutycycle1[j] + dutycycle2[j]) / 3;
           node.setDavIndex(j, temp);
         }
+        Serial.printf("Duty cycle: %f %f %f %d\n", node.getDavIndex(0), node.getDavIndex(1), node.getDavIndex(2), node.getConsensusIterations());
 
         // COMPUTATION OF THE LAGRANGIAN UPDATES
         for (int j = 0; j < 3; j++)
@@ -309,12 +328,11 @@ void consensusLoop()
         {
           node.setConsensusRunning(false);
           Serial.println("Consensus reached\n");
-          Serial.printf("Duty cycle: %f %f %f %d\n", node.getDIndex(0), node.getDIndex(1), node.getDIndex(2), node.getConsensusIterations());
+          Serial.printf("Duty cycle: %f %f %f %d\n", node.getDavIndex(0), node.getDavIndex(1), node.getDavIndex(2), node.getConsensusIterations());
           // UPDATE DUTY CYCLE CONTROL INPUT
         }
         else // If not, update the iteration counter and go back to the iteration stage
         {
-          node.setConsensusIterations(node.getConsensusIterations() + 1);
           consensusStage = consensusStage::CONSENSUSITERATON;
           // Update the last d values
           node.copyArray(node.getLastD(), node.getD());

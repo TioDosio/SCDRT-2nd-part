@@ -13,8 +13,9 @@ class communication
     std::queue<can_frame> command_queue;
     unsigned long connect_time;
     std::set<int> desks_connected, missing_ack;
-    bool is_connected, consensus_acknoledged;
-    int time_to_connect;
+    bool is_connected;
+    long time_to_connect;
+    unsigned long time_write;
     can_frame last_msg_sent;
     int last_msg_counter;
     double light_off, light_on;
@@ -29,13 +30,15 @@ public:
     explicit communication(luminaire *_my_desk);
     ~communication(){};
     int find_desk();
-    void acknowledge_loop();
+    void acknowledge_loop(Node *node);
+    void start_consensus_msg();
     void calibration_msg(int dest_desk, char type);
     void msg_received_connection(can_frame canMsgRx);
     void msg_received_calibration(can_frame canMsgRx);
     void msg_received_consensus(can_frame canMsgRx, Node *node);
-    void msg_received_ack(can_frame canMsgRx);
-    void consensus_msg(double d[3]);
+    void msg_received_ack(can_frame canMsgRx, Node *node);
+    void consensus_msg_start(int next_desk);
+    void consensus_msg_duty(double d[3]);
     void confirm_msg(can_frame ack_msg);
     int char_msg_to_int(char msg);
     char int_to_char_msg(int msg);
@@ -108,6 +111,10 @@ public:
         return missing_ack.empty();
     }
 
+    std::set<int> getMissingAck()
+    {
+        return missing_ack;
+    }
     // Setters
     void setConnectTime(unsigned long time)
     {
@@ -122,16 +129,6 @@ public:
     void add2TimeToConnect(int time)
     {
         time_to_connect += time;
-    }
-
-    bool getConsensusAck()
-    {
-        return consensus_acknoledged;
-    }
-
-    void setConsensusAck(bool ack)
-    {
-        consensus_acknoledged = ack;
     }
 
     bool getIsCalibrated()
@@ -194,6 +191,16 @@ public:
     std::set<int> getDesksConnected()
     {
         return desks_connected;
+    }
+
+    unsigned long getTimeWrite()
+    {
+        return time_write;
+    }
+
+    void setTimeWrite(unsigned long time)
+    {
+        time_write = time;
     }
 };
 

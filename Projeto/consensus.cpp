@@ -2,10 +2,10 @@
 #include <cmath>
 #include "consensus.h"
 
-void Node::initializeNode(double K[], int index, double o)
+void Node::initializeNode(double *K, int index, double o)
 {
     this->index = index;
-    rho = 0.1;
+    rho = 0.7;
     for (int i = 0; i < 3; i++)
     {
         d[i] = 0;
@@ -18,7 +18,7 @@ void Node::initializeNode(double K[], int index, double o)
     n = k[0] * k[0] + k[1] * k[1] + k[2] * k[2];
     m = n - k[index] * k[index];
     this->o = o;
-    L = getCurrentLowerBound();
+    L = 30.0;
 }
 
 double Node::evaluateCost(double d[])
@@ -356,9 +356,18 @@ void Node::resetOtherD()
     {
         for (int j = 0; j < 3; j++)
         {
-            otherD[i][j] = 0;
+            otherD[i][j] = -1;
         }
     }
+}
+
+bool Node::checkOtherDIsFull()
+{
+    if (otherD[0][0] != -1 && otherD[1][0] != -1)
+    {
+        return true;
+    }
+    return false;
 }
 
 void Node::setOtherD(int index, double *value)
@@ -372,4 +381,14 @@ void Node::setOtherD(int index, double *value)
 double *Node::getOtherD(int index)
 {
     return otherD[index];
+}
+
+void Node::setConsensusReady(bool value)
+{
+    consensusReady = value;
+}
+
+bool Node::getConsensusReady()
+{
+    return consensusReady;
 }

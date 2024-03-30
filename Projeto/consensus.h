@@ -1,6 +1,8 @@
 #ifndef CONSENSUS
 #define CONSENSUS
 
+#include <Arduino.h>
+
 class Node
 {
 private:
@@ -22,6 +24,7 @@ private:
     double lowerBoundOccupied = 10;
     double lowerBoundUnoccupied = 3;
     bool consensusRunning = false;
+    bool consensusReady = false;
     int consensusIteration = 0;
     int maxiter = 100;
     double evaluateCost(double d[]);
@@ -29,7 +32,7 @@ private:
     void updateBest(double d_best[], double d[], double &cost_best, double cost);
 
 public:
-    void initializeNode(double K[], int index, double o);
+    void initializeNode(double *K, int index, double o);
     void consensusIterate();
     bool checkConvergence();
     double *getDav();
@@ -57,8 +60,11 @@ public:
     void setConsensusMaxIterations(int value);
     int getConsensusMaxIterations();
     void resetOtherD();
+    bool checkOtherDIsFull();
     void setOtherD(int index, double d[]);
     double *getOtherD(int index);
+    void setConsensusReady(bool value);
+    bool getConsensusReady();
 };
 
 #endif

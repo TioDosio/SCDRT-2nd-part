@@ -2,7 +2,7 @@
 #include <cstring>
 #include <Arduino.h>
 
-communication::communication(luminaire *_my_desk) : my_desk{_my_desk}, is_connected{false}, time_to_connect{500}, consensus_acknoledged{false}, light_off{0.0}, light_on{0.0}, is_calibrated{false}, coupling_gains{NULL}
+communication::communication(luminaire *_my_desk) : my_desk{_my_desk}, is_connected{false}, time_to_connect{500}, light_off{0.0}, light_on{0.0}, is_calibrated{false}, coupling_gains{NULL}
 {
 }
 
@@ -16,7 +16,7 @@ int communication::find_desk()
   return i;
 }
 
-void communication::acknowledge_loop()
+void communication::acknowledge_loop(Node *node)
 {
   while (can0.checkReceive() && !isMissingAckEmpty())
   {
@@ -32,14 +32,14 @@ void communication::acknowledge_loop()
       confirm_msg(canMsgRx);
       if (isMissingAckEmpty())
       {
-        msg_received_ack(last_msg_sent);
+        msg_received_ack(last_msg_sent, node);
       }
     }
   }
 }
 
 // Trigger of some actions after receiving the ack
-void communication::msg_received_ack(can_frame canMsgRx)
+void communication::msg_received_ack(can_frame canMsgRx, Node *node)
 {
   switch (canMsgRx.data[0])
   {
@@ -77,7 +77,24 @@ void communication::msg_received_ack(can_frame canMsgRx)
     }
   case 'S':
   {
-    consensus_acknoledged = true;
+    int next_desk = canMsgRx.can_id + 1 > getNumDesks() ? 1 : canMsgRx.can_id + 1;
+    node->setConsensusIterations(node->getConsensusIterations() + 1);
+    if (node->getConsensusIterations() < node->getConsensusMaxIterations())
+    {
+      consensus_msg_start(next_desk);
+      Serial.printf("Duty cycle: %f %f %f %d\n", node->getDavIndex(0), node->getDavIndex(1), node->getDavIndex(2), node->getConsensusIterations());
+      if (node->getConsensusIterations() == node->getConsensusMaxIterations() - 1)
+      {
+        Serial.printf("FIQUEI FALSE\n");
+        node->setConsensusRunning(false); // Stop the consensus when the max iterations are reached
+      }
+    }
+    else
+    {
+      Serial.println("Consensus reached\n");
+      Serial.printf("Duty cycle: %f %f %f %d\n", node->getDavIndex(0), node->getDavIndex(1), node->getDavIndex(2), node->getConsensusIterations());
+      // UPDATE DUTY CYCLE CONTROL INPUT
+    }
     break;
   }
   default:
@@ -98,7 +115,6 @@ void communication::ack_msg(can_frame orig_msg)
     canMsgTx.data[i + 1] = orig_msg.data[i];
   }
   err = can0.sendMessage(&canMsgTx);
-  Serial.printf("Ack %c %c %c\n", canMsgTx.data[0], canMsgTx.data[1], canMsgTx.data[2]);
 
   if (err != MCP2515::ERROR_OK)
   {
@@ -289,19 +305,29 @@ void communication::msg_received_consensus(can_frame canMsgRx, Node *node)
   int index = std::distance(desks_connected.begin(), desks_connected.find(canMsgRx.can_id));
   for (int i = 0; i < 3; i++)
   {
-    d[i] = (static_cast<int>(canMsgRx.data[2 * i + 1]) + static_cast<int>(canMsgRx.data[2 * i + 2]) << 8) / 100.0;
+    d[i] = (static_cast<int>(canMsgRx.data[2 * i + 1]) + (static_cast<int>(canMsgRx.data[2 * i + 2]) << 8)) / 100.0;
   }
   node->setOtherD(index, d);
-  Serial.println("R");
-  for (int i = 0; i < 3; i++)
-  {
-    Serial.printf("d %d-> %f\n", i, d[i]);
-  }
   //  Send ack
   ack_msg(canMsgRx);
 }
 
-void communication::consensus_msg(double d[3])
+void communication::consensus_msg_start(int dest_desk)
+{
+  struct can_frame canMsgTx;
+  canMsgTx.can_id = my_desk->getDeskNumber();
+  canMsgTx.can_dlc = 8;
+  canMsgTx.data[0] = 'T';
+  canMsgTx.data[1] = ' ';
+  canMsgTx.data[2] = int_to_char_msg(dest_desk);
+  int msg;
+  for (int i = 2; i < 8; i++)
+  {
+    canMsgTx.data[i] = ' ';
+  }
+}
+
+void communication::consensus_msg_duty(double d[3])
 {
   struct can_frame canMsgTx;
   canMsgTx.can_id = my_desk->getDeskNumber();
@@ -316,7 +342,6 @@ void communication::consensus_msg(double d[3])
   }
   canMsgTx.data[7] = ' ';
   err = can0.sendMessage(&canMsgTx);
-  Serial.printf("Sent %c %c %c, = %f -> %f\n", canMsgTx.data[0], canMsgTx.data[1], canMsgTx.data[2], (static_cast<int>(canMsgTx.data[1]) + static_cast<int>(canMsgTx.data[2]) << 8) / 100.0, d[0]);
   if (err != MCP2515::ERROR_OK)
   {
     // MESSAGE NOT SENT
@@ -354,7 +379,6 @@ char communication::int_to_char_msg(int msg)
 void communication::resend_last_msg()
 {
   last_msg_counter++;
-  Serial.printf("Ress %c %c %c\n", last_msg_sent.data[0], last_msg_sent.data[1], last_msg_sent.data[2]);
   if (last_msg_counter == 5) // After 5 tries, remove the nodes that didn't ack
   {
     // TODO : CHANGE THE HUB IF THE ONE DISCONNECTED WAS THE HUB
@@ -381,4 +405,17 @@ void communication::delay_manual(unsigned long delay)
   {
     delay_end = millis();
   }
+}
+
+void communication::start_consensus_msg()
+{
+  struct can_frame canMsgTx;
+  canMsgTx.can_id = my_desk->getDeskNumber();
+  canMsgTx.can_dlc = 8;
+  canMsgTx.data[0] = 'T';
+  for (int i = 1; i < 7; i++)
+  {
+    canMsgTx.data[i + 1] = ' ';
+  }
+  add_msg_queue(canMsgTx);
 }
