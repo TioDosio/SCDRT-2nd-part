@@ -1,7 +1,7 @@
 #include "command.h"
 #include "Communication.h"
 
-void read_command()
+void read_command(float read_adc)
 {
 
   if (Serial.available() > 0)
@@ -16,7 +16,7 @@ void read_command()
       sscanf(command.c_str(), "d %d %f", &i, &val);
       if (i == this_desk)
       {
-        if (val >= 0 and val <= 100)
+        if (val >= 0 and val <= 100) // DESLIGAR TUDO
         {
           my_desk.setDutyCycle(val);
           analogWrite(LED_PIN, val * dutyCycle_conv);
@@ -65,7 +65,6 @@ void read_command()
           Serial.printf("Desk %d -> %f\n", i, comm.getCouplingGain(i - 1));
         }
         Serial.printf("external light: %f\n", comm.getExternalLight());
-        Serial.println(comm.getCouplingGain(my_desk.getDeskNumber() - 1));
       }
     }
 
@@ -106,15 +105,10 @@ void read_command()
       sscanf(command.c_str(), "g l %d", &i);
       if (i == this_desk)
       {
-        int total_adc, read_adc, j;
+        int read_adc_new;
         float Lux;
-        for (j = 0, total_adc = 0; j < 20; j += 1)
-        {
-          read_adc = analogRead(A0);
-          total_adc += read_adc;
-        }
-        read_adc = total_adc / 20.0;
-        Lux = adc_to_lux(read_adc);
+        read_adc_new = digital_filter(20.0);
+        Lux = adc_to_lux(read_adc_new);
         Serial.printf("l %d %f\n", this_desk, Lux);
       }
       else
@@ -127,11 +121,17 @@ void read_command()
       sscanf(command.c_str(), "o %d %f", &i, &val);
       if (i == this_desk)
       {
-        if (val == 0 or val == 1)
+        if (val == 1)
         {
-          my_desk.setOccupied(val);
-          my_desk.setDutyCycle(0);
-          val == 0 ? ref_change(my_desk.getRefUnoccupied()) : ref_change(my_desk.getRefOccupied());
+          node.setOccupancy(val);
+          runConsensus();
+          Serial.println("Starting consensus");
+        }
+        else if (val == 0)
+        {
+          node.setOccupancy(val);
+          runConsensus();
+          Serial.println("Starting consensus");
         }
         else if (val == 2)
         {
@@ -432,9 +432,12 @@ void read_command()
         else
         {
           Serial.println("err");
-          // NOT THIS DESK // Command not recognized
         }
         return;
+      }
+      else
+      {
+        // NOT THIS DESK
       }
     }
     else if (command.startsWith("g O"))
@@ -461,9 +464,12 @@ void read_command()
         else
         {
           Serial.println("err");
-          // NOT THIS DESK // Command not recognized
         }
         return;
+      }
+      else
+      {
+        // NOT THIS DESK
       }
     }
     else if (command.startsWith("g U"))

@@ -17,7 +17,6 @@ pid my_pid{0.01, 0.15, 1.5}; // h, k, Tt
 // (float _h, float _K, float Tt_,float b_,float Ti_, float Td_, float N_)
 luminaire my_desk{-0.89, log10(225000) - (-0.89), 0.0158}; // m, b(offset), Pmax, desk_number
 // system my_desk{float _m, float _offset_R_Lux, float _Pmax, unsigned short _desk_number}
-float read_adc;
 bool debbuging = false;
 
 communication comm{&my_desk};
@@ -44,11 +43,6 @@ bool my_repeating_timer_callback(struct repeating_timer *t)
 
 // Consensus
 Node node;
-bool consensusRunning = false;
-int consensusIteration = 0;
-int maxiter = 100;
-double otherD[2][3];
-double K[3][3];
 
 bool flag_temp = false; // TODO
 
@@ -89,10 +83,26 @@ void setup1()
 
 void loop()
 { // the loop function runs cyclically
-  read_command();
   if (comm.getIsCalibrated())
   {
-    controllerLoop();
+    if (timer_fired)
+    {
+      float time;
+      time = millis();
+      timer_fired = false;
+      float read_adc = digital_filter(20.0);
+      if (my_desk.isON() && (!my_desk.isIgnoreReference()))
+      {
+        consensusLoop();
+        controllerLoop(read_adc);
+      }
+      float lux = adc_to_lux(read_adc);
+      my_desk.Compute_avg(my_pid.get_h(), lux, my_desk.getRef());
+      my_desk.store_buffer(lux);
+      read_command(read_adc);
+      real_time_stream_of_data(time / 1000, lux);
+      timer_fired = false;
+    }
   }
 }
 
@@ -101,43 +111,28 @@ void loop1()
   communicationLoop();
 }
 
-inline void controllerLoop()
+inline void controllerLoop(float read_adc)
 {
   float u;
   int pwm;
-  float v_adc, total_adc;
-  float time;
-  if (timer_fired)
-  {
-    time = millis();
-    timer_fired = false;
-    read_adc = digital_filter(20.0);
-    if (my_desk.isON() && (!my_desk.isIgnoreReference()))
-    {
-      // Feedforward
-      my_pid.compute_feedforward(my_desk.getRefVolt());
+  float v_adc;
+  // Feedforward
+  my_pid.compute_feedforward(my_desk.getRefVolt());
 
-      // Feedback
-      if (my_pid.get_feedback())
-      {
-        v_adc = adc_to_volt(read_adc);                           // Volt na entrada
-        u = my_pid.compute_control(my_desk.getRefVolt(), v_adc); // Volt
-        my_pid.housekeep(my_desk.getRefVolt(), v_adc);
-      }
-      else
-      {
-        u = my_pid.get_u();
-      }
-      pwm = u * 4095;
-      analogWrite(LED_PIN, pwm);
-      my_desk.setDutyCycle(pwm / dutyCycle_conv);
-    }
-    float lux = adc_to_lux(read_adc);
-    my_desk.Compute_avg(my_pid.get_h(), lux, my_desk.getRef());
-    my_desk.store_buffer(lux);
-    read_command();
-    real_time_stream_of_data(time / 1000, lux);
+  // Feedback
+  if (my_pid.get_feedback())
+  {
+    v_adc = adc_to_volt(read_adc);                           // Volt na entrada
+    u = my_pid.compute_control(my_desk.getRefVolt(), v_adc); // Volt
+    my_pid.housekeep(my_desk.getRefVolt(), v_adc);
   }
+  else
+  {
+    u = my_pid.get_u();
+  }
+  pwm = u * 4095;
+  analogWrite(LED_PIN, pwm);
+  my_desk.setDutyCycle(pwm / dutyCycle_conv);
 }
 
 inline void communicationLoop()
@@ -248,22 +243,26 @@ float Tau(float value)
 
 void runConsensus()
 {
-  if (comm.getNumDesks() == 3)
+  if (comm.getNumDesks() == 3 && my_desk.isON() && !node.getConsensusRunning())
   {
     // NODE INITIALIZATION
     node.initializeNode(comm.getCouplingGains(), my_desk.getDeskNumber() - 1, comm.getExternalLight()); // TODO VER EXTERNAL LIGHT
 
     // RUN CONSENSUS ALGORITHM
-    consensusRunning = true;
-    consensusIteration = 0;
+    node.setConsensusRunning(true);
+    node.setConsensusIterations(0);
     consensusStage = consensusStage::CONSENSUSITERATON;
-    otherD[2][3] = {0};
+    node.resetOtherD();
+  }
+  else
+  {
+    Serial.println("Error: Not all nodes are connected or the luminaire is off or consensus is already running.\n");
   }
 }
 
-void ConsensusLoop()
+void consensusLoop()
 {
-  if (consensusRunning)
+  if (node.getConsensusRunning())
   {
     switch (consensusStage)
     {
@@ -275,7 +274,7 @@ void ConsensusLoop()
       comm.consensus_msg(node.getD()); // Send the d values to the neighbors
 
       consensusStage = consensusStage::CONSENSUSWAIT;
-      otherD[3][3] = {0};
+      node.resetOtherD(); // Reset the other d values
       break;
     }
     case consensusStage::CONSENSUSWAIT:
@@ -284,9 +283,11 @@ void ConsensusLoop()
       {
         // COMPUTATION OF THE AVERAGE
         double temp;
+        double *dutycycle1 = node.getOtherD(0);
+        double *dutycycle2 = node.getOtherD(1);
         for (int j = 0; j < 3; j++)
         {
-          temp = (node.getDIndex(j) + otherD[0][j] + otherD[1][j]) / 3;
+          temp = (node.getDIndex(j) + dutycycle1[j] + dutycycle2[j]) / 3;
           node.setDavIndex(j, temp);
         }
 
@@ -297,14 +298,14 @@ void ConsensusLoop()
         }
 
         // Check if a consensus has been reached, if so, break the loop
-        if (node.checkConvergence() || consensusIteration >= maxiter)
+        if (node.checkConvergence() || node.getConsensusIterations() >= node.getConsensusMaxIterations())
         {
-          consensusRunning = false;
+          node.setConsensusRunning(false);
           // UPDATE DUTY CYCLE CONTROL INPUT
         }
         else // If not, update the iteration counter and go back to the iteration stage
         {
-          consensusIteration++;
+          node.setConsensusIterations(node.getConsensusIterations() + 1);
           consensusStage = consensusStage::CONSENSUSITERATON;
           // Update the last d values
           node.copyArray(node.getLastD(), node.getD());

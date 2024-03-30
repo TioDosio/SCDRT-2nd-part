@@ -17,9 +17,13 @@ private:
     double rho;
     double cost;
     double lastD[3];
+    double otherD[2][3];
     int occupancy;
     double lowerBoundOccupied = 10;
     double lowerBoundUnoccupied = 3;
+    bool consensusRunning = false;
+    int consensusIteration = 0;
+    int maxiter = 100;
     double evaluateCost(double d[]);
     bool checkFeasibility(double d[]);
     void updateBest(double d_best[], double d[], double &cost_best, double cost);
@@ -45,6 +49,16 @@ public:
     void setlowerBoundUnoccupied(double value);
     double getLowerBoundUnoccupied();
     void setOccupancy(int value);
+    double getCurrentLowerBound();
+    void setConsensusRunning(bool value);
+    bool getConsensusRunning();
+    void setConsensusIterations(int value);
+    int getConsensusIterations();
+    void setConsensusMaxIterations(int value);
+    int getConsensusMaxIterations();
+    void resetOtherD();
+    void setOtherD(int index, double d[]);
+    double *getOtherD(int index);
 };
 
 #endif

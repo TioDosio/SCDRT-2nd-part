@@ -13,12 +13,12 @@ void Node::initializeNode(double K[], int index, double o)
         d_av[i] = 0;
         lambda[i] = 0;
         k[i] = K[i];
-        c[i] = (i == index) ? 1 : 0; // MUDAR PARA O CUSTO
+        c[i] = (i == index) ? 1 : 0; // MUDAR O 1 PARA O CUSTO
     }
     n = k[0] * k[0] + k[1] * k[1] + k[2] * k[2];
     m = n - k[index] * k[index];
     this->o = o;
-    L = getLowerBoundUnoccupied(); // mudar???
+    L = getCurrentLowerBound();
 }
 
 double Node::evaluateCost(double d[])
@@ -282,6 +282,7 @@ double *Node::getLastD()
 void Node::setLowerBoundOccupied(double value)
 {
     lowerBoundOccupied = value;
+    L = lowerBoundOccupied;
 }
 
 double Node::getLowerBoundOccupied()
@@ -292,6 +293,7 @@ double Node::getLowerBoundOccupied()
 void Node::setlowerBoundUnoccupied(double value)
 {
     lowerBoundUnoccupied = value;
+    L = lowerBoundUnoccupied;
 }
 
 double Node::getLowerBoundUnoccupied()
@@ -311,4 +313,63 @@ void Node::setOccupancy(int value)
         occupancy = 0;
         L = getLowerBoundUnoccupied();
     }
+}
+
+double Node::getCurrentLowerBound()
+{
+    return L;
+}
+
+void Node::setConsensusRunning(bool value)
+{
+    consensusRunning = value;
+}
+
+bool Node::getConsensusRunning()
+{
+    return consensusRunning;
+}
+
+void Node::setConsensusIterations(int value)
+{
+    consensusIteration = value;
+}
+
+int Node::getConsensusIterations()
+{
+    return consensusIteration;
+}
+
+void Node::setConsensusMaxIterations(int value)
+{
+    maxiter = value;
+}
+
+int Node::getConsensusMaxIterations()
+{
+    return maxiter;
+}
+
+void Node::resetOtherD()
+{
+    for (int i = 0; i < 2; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            otherD[i][j] = 0;
+        }
+    }
+}
+
+void Node::setOtherD(int index, double *value)
+{
+    for (int i = 0; i < 3; i++)
+    {
+        otherD[index][i] = value[i];
+    }
+}
+
+double *Node::getOtherD(int index)
+{
+    return otherD[index];
 }

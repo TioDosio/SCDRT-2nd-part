@@ -31,11 +31,6 @@ public:
     desk_number = value;
   }
 
-  void setOccupied(bool value)
-  {
-    occupied = value;
-  }
-
   void setON(bool value)
   {
     on = value;
@@ -128,16 +123,6 @@ public:
   float getM() const
   {
     return m;
-  }
-
-  float getRefOccupied() const
-  {
-    return ref_occupied;
-  }
-
-  float getRefUnoccupied() const
-  {
-    return ref_unoccupied;
   }
 
   int getIdxBuffer() const

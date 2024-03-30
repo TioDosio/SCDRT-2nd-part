@@ -300,8 +300,18 @@ void communication::consensus_msg(double d[3])
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = 'S';
   canMsgTx.data[1] = 'D';
-  // memcpy(canMsgTx.data + (2 * sizeof(char) + sizeof(int)), &d, sizeof(d));
-
+  int msg0, msg1, msg2;
+  msg0 = static_cast<int>(d[0] * 100);
+  msg1 = static_cast<int>(d[1] * 100);
+  msg2 = static_cast<int>(d[2] * 100);
+  canMsgTx.data[2] = msg0 % 256;
+  canMsgTx.data[3] = msg0 / 256;
+  canMsgTx.data[4] = msg1 % 256;
+  canMsgTx.data[5] = msg1 / 256;
+  canMsgTx.data[6] = msg2 % 256;
+  canMsgTx.data[7] = msg2 / 256;
+  float duty = (canMsgTx.data[2] + canMsgTx.data[3] * 256) / 100;
+  Serial.printf("orig->%f new->%f\n", d[0], duty);
   err = can0.sendMessage(&canMsgTx);
   if (err != MCP2515::ERROR_OK)
   {
