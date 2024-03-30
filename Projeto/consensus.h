@@ -46,7 +46,7 @@ public:
     void copyArray(double dest[], double src[]);
     void setLowerBoundOccupied(double value);
     double getLowerBoundOccupied();
-    void setlowerBoundUnoccupied(double value);
+    void setLowerBoundUnoccupied(double value);
     double getLowerBoundUnoccupied();
     void setOccupancy(int value);
     double getCurrentLowerBound();

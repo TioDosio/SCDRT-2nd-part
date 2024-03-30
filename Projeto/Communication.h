@@ -5,6 +5,7 @@
 #include <set>   // std::set
 #include <queue> // std::queue
 #include "extrafunctions.h"
+#include "consensus.h"
 #include "luminaire.h"
 
 class communication
@@ -32,7 +33,7 @@ public:
     void calibration_msg(int dest_desk, char type);
     void msg_received_connection(can_frame canMsgRx);
     void msg_received_calibration(can_frame canMsgRx);
-    void msg_received_consensus(can_frame canMsgRx);
+    void msg_received_consensus(can_frame canMsgRx, Node *node);
     void msg_received_ack(can_frame canMsgRx);
     void consensus_msg(double d[3]);
     void confirm_msg(can_frame ack_msg);

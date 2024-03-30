@@ -290,7 +290,7 @@ double Node::getLowerBoundOccupied()
     return lowerBoundOccupied;
 }
 
-void Node::setlowerBoundUnoccupied(double value)
+void Node::setLowerBoundUnoccupied(double value)
 {
     lowerBoundUnoccupied = value;
     L = lowerBoundUnoccupied;

@@ -125,12 +125,14 @@ void read_command(float read_adc)
         {
           node.setOccupancy(val);
           runConsensus();
+          send_to_others('s');
           Serial.println("Starting consensus");
         }
         else if (val == 0)
         {
           node.setOccupancy(val);
           runConsensus();
+          send_to_others('s');
           Serial.println("Starting consensus");
         }
         else if (val == 2)
@@ -427,7 +429,7 @@ void read_command(float read_adc)
       {
         if (val > 0)
         {
-          // SET LOWER BOUND OCCUPIED
+          node.setLowerBoundOccupied(val);
         }
         else
         {
@@ -445,7 +447,7 @@ void read_command(float read_adc)
       sscanf(command.c_str(), "g O %d", &i);
       if (i == this_desk)
       {
-        // GET LOWER BOUND OCCUPIED
+        node.getLowerBoundOccupied();
       }
       else
       {
@@ -459,7 +461,7 @@ void read_command(float read_adc)
       {
         if (val > 0)
         {
-          // SET LOWER BOUND UNOCCUPIED
+          node.setLowerBoundUnoccupied(val);
         }
         else
         {
@@ -477,7 +479,7 @@ void read_command(float read_adc)
       sscanf(command.c_str(), "g U %d", &i);
       if (i == this_desk)
       {
-        // GET LOWER BOUND UNOCCUPIED
+        node.getLowerBoundUnoccupied();
       }
       else
       {
@@ -489,7 +491,7 @@ void read_command(float read_adc)
       sscanf(command.c_str(), "g L %d", &i);
       if (i == this_desk)
       {
-        // GET CURRENT LOWER BOUND
+        node.getCurrentLowerBound();
       }
       else
       {
@@ -550,17 +552,19 @@ void real_time_stream_of_data(unsigned long time, float lux)
   }
 }
 
-void send_to_others(const String &command)
+void send_to_others(char type)
 {
-  int this_desk = my_desk.getDeskNumber(); // Declare and initialize this_desk variable
   struct can_frame canMsgTx;
-  canMsgTx.can_id = this_desk; // Replace this_desk with the correct value obtained from my_desk.getDeskNumber()
+  canMsgTx.can_id = my_desk.getDeskNumber(); // Replace this_desk with the correct value obtained from my_desk.getDeskNumber()
   canMsgTx.can_dlc = 8;
-  for (int i = 0; i < 8; i++)
+  canMsgTx.data[0] = type;
+  canMsgTx.data[1] = ' ';
+  canMsgTx.data[2] = comm.int_to_char_msg(0);
+  for (int i = 3; i < 8; i++)
   {
-    canMsgTx.data[i] = command[i];
+    canMsgTx.data[i] = ' ';
   }
-  // comm.sendMsg(&canMsgTx);
+  comm.sendMsg(&canMsgTx);
   if (comm.getError() != MCP2515::ERROR_OK)
   {
     Serial.printf("Error sending message \n");

@@ -98,6 +98,8 @@ void communication::ack_msg(can_frame orig_msg)
     canMsgTx.data[i + 1] = orig_msg.data[i];
   }
   err = can0.sendMessage(&canMsgTx);
+  Serial.printf("Ack %c %c %c\n", canMsgTx.data[0], canMsgTx.data[1], canMsgTx.data[2]);
+
   if (err != MCP2515::ERROR_OK)
   {
     // Serial.printf("Error sending message: %s\n", err);
@@ -114,7 +116,7 @@ void communication::connection_msg(char type)
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = 'W';
   canMsgTx.data[1] = type;
-  canMsgTx.data[2] = int_to_char_msg(0); // DESK TO WHICH THE MESSAGE IS DIRECTED, in messages that require it
+  canMsgTx.data[2] = int_to_char_msg(0); // TO direct the message to everyone
   for (int i = 3; i < 8; i++)
   {
     canMsgTx.data[i] = ' ';
@@ -281,14 +283,20 @@ void communication::Gain()
 }
 
 // CONSENSUS
-void communication::msg_received_consensus(can_frame canMsgRx)
+void communication::msg_received_consensus(can_frame canMsgRx, Node *node)
 {
   double d[3];
-  // memcpy(&d, canMsgRx.data + (2 * sizeof(char) + sizeof(int)), sizeof(d)); // TODO ver se isto está correto
-
-  // otherD[0][0] = d[0];
-  // otherD[0][1] = d[1]; // TODO ver de que desk veio o valor
-  // otherD[0][2] = d[2];
+  int index = std::distance(desks_connected.begin(), desks_connected.find(canMsgRx.can_id));
+  for (int i = 0; i < 3; i++)
+  {
+    d[i] = (static_cast<int>(canMsgRx.data[2 * i + 1]) + static_cast<int>(canMsgRx.data[2 * i + 2]) << 8) / 100.0;
+  }
+  node->setOtherD(index, d);
+  Serial.println("R");
+  for (int i = 0; i < 3; i++)
+  {
+    Serial.printf("d %d-> %f\n", i, d[i]);
+  }
   //  Send ack
   ack_msg(canMsgRx);
 }
@@ -299,25 +307,24 @@ void communication::consensus_msg(double d[3])
   canMsgTx.can_id = my_desk->getDeskNumber();
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = 'S';
-  canMsgTx.data[1] = 'D';
-  int msg0, msg1, msg2;
-  msg0 = static_cast<int>(d[0] * 100);
-  msg1 = static_cast<int>(d[1] * 100);
-  msg2 = static_cast<int>(d[2] * 100);
-  canMsgTx.data[2] = msg0 % 256;
-  canMsgTx.data[3] = msg0 / 256;
-  canMsgTx.data[4] = msg1 % 256;
-  canMsgTx.data[5] = msg1 / 256;
-  canMsgTx.data[6] = msg2 % 256;
-  canMsgTx.data[7] = msg2 / 256;
-  float duty = (canMsgTx.data[2] + canMsgTx.data[3] * 256) / 100;
-  Serial.printf("orig->%f new->%f\n", d[0], duty);
+  int msg;
+  for (int i = 1, j = 0; i < 7; i += 2, j++)
+  {
+    msg = d[j] > 0 ? static_cast<int>(d[j] * 100) : 0;
+    canMsgTx.data[i] = static_cast<unsigned char>(msg & 255);    // Same as msg0 % 256, but more efficient
+    canMsgTx.data[i + 1] = static_cast<unsigned char>(msg >> 8); // Same as msg0 / 256, but more efficient
+  }
+  canMsgTx.data[7] = ' ';
   err = can0.sendMessage(&canMsgTx);
+  Serial.printf("Sent %c %c %c, = %f -> %f\n", canMsgTx.data[0], canMsgTx.data[1], canMsgTx.data[2], (static_cast<int>(canMsgTx.data[1]) + static_cast<int>(canMsgTx.data[2]) << 8) / 100.0, d[0]);
   if (err != MCP2515::ERROR_OK)
   {
     // MESSAGE NOT SENT
   }
-  // wich desk sent the message resets
+  missing_ack = desks_connected;
+  time_ack = millis();
+  last_msg_sent = canMsgTx;
+  last_msg_counter = 0;
 }
 
 //------------------------UTILS------------------------
@@ -347,6 +354,7 @@ char communication::int_to_char_msg(int msg)
 void communication::resend_last_msg()
 {
   last_msg_counter++;
+  Serial.printf("Ress %c %c %c\n", last_msg_sent.data[0], last_msg_sent.data[1], last_msg_sent.data[2]);
   if (last_msg_counter == 5) // After 5 tries, remove the nodes that didn't ack
   {
     // TODO : CHANGE THE HUB IF THE ONE DISCONNECTED WAS THE HUB
@@ -354,7 +362,7 @@ void communication::resend_last_msg()
     for (const int &element : missing_ack)
     {
       desks_connected.erase(element);
-      // Serial.printf("Node %d removed from the connected nodes do to inactivity\n", element);
+      Serial.printf("Node %d removed from the connected nodes do to inactivity\n", element);
     }
     missing_ack = desks_connected;
   }

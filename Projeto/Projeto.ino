@@ -5,7 +5,7 @@
 #include "Communication.h"
 #include "extrafunctions.h"
 
-#define TIME_ACK 2500
+#define TIME_ACK 5000
 
 // luminaire
 const int LED_PIN = 15;
@@ -164,15 +164,17 @@ inline void communicationLoop()
     data_available = false;
     if (!comm.isMissingAckEmpty()) // Check if there are any missing acks
     {
+      Serial.printf("M ack\n");
       comm.acknowledge_loop();
     }
     else
     {
+      Serial.printf("Not missing ack\n");
       while (comm.IsMsgAvailable()) // Check if something has been received
       {
         can_frame canMsgRx;
         comm.ReadMsg(&canMsgRx);
-        if (canMsgRx.data[2] == comm.int_to_char_msg(my_desk.getDeskNumber()) || canMsgRx.data[2] == comm.int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
+        if (canMsgRx.data[0] == 'S' || canMsgRx.data[2] == comm.int_to_char_msg(my_desk.getDeskNumber()) || canMsgRx.data[2] == comm.int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
         {
           comm.add_msg_queue(canMsgRx); // Put all the messages in the queue
         }
@@ -182,6 +184,7 @@ inline void communicationLoop()
       {
         can_frame canMsgRx;
         canMsgRx = comm.get_msg_queue();
+        Serial.printf("Rec: %c %c %c\n", canMsgRx.data[0], canMsgRx.data[1], canMsgRx.data[2]);
         switch (canMsgRx.data[0])
         {
         case 'W':
@@ -191,7 +194,11 @@ inline void communicationLoop()
           comm.msg_received_calibration(canMsgRx);
           break;
         case 'S':
-          comm.msg_received_consensus(canMsgRx);
+          comm.msg_received_consensus(canMsgRx, &node);
+          break;
+        case 's':
+          runConsensus();
+          Serial.println("Running consensus");
           break;
         default:
           break;
@@ -272,14 +279,14 @@ void consensusLoop()
       node.consensusIterate();
 
       comm.consensus_msg(node.getD()); // Send the d values to the neighbors
-
+      Serial.println("mandei S");
       consensusStage = consensusStage::CONSENSUSWAIT;
       node.resetOtherD(); // Reset the other d values
       break;
     }
     case consensusStage::CONSENSUSWAIT:
     {
-      if (true) // TODO received all neighbors d values with acks (TO DO)
+      if (comm.isMissingAckEmpty()) // TODO received all neighbors d values with acks (TO DO)
       {
         // COMPUTATION OF THE AVERAGE
         double temp;
@@ -298,9 +305,11 @@ void consensusLoop()
         }
 
         // Check if a consensus has been reached, if so, break the loop
-        if (node.checkConvergence() || node.getConsensusIterations() >= node.getConsensusMaxIterations())
+        if (/*node.checkConvergence() ||*/ node.getConsensusIterations() >= node.getConsensusMaxIterations())
         {
           node.setConsensusRunning(false);
+          Serial.println("Consensus reached\n");
+          Serial.printf("Duty cycle: %f %f %f %d\n", node.getDIndex(0), node.getDIndex(1), node.getDIndex(2), node.getConsensusIterations());
           // UPDATE DUTY CYCLE CONTROL INPUT
         }
         else // If not, update the iteration counter and go back to the iteration stage
