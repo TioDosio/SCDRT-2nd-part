@@ -40,3 +40,27 @@ float digital_filter(float value)
   }
   return total_adc / value;
 }
+
+void ref_change(float value)
+{
+  my_desk.setRef(value);
+  my_desk.setIgnoreReference(false);
+  my_pid.set_b(my_desk.getRefVolt() / my_desk.getRef(), my_desk.getGain());
+  my_desk.setON(true);
+  my_pid.set_Ti(Tau(my_desk.getRef()));
+}
+
+float Tau(float value)
+{
+  if (value >= 0.5)
+  {
+    float R1 = 10e3;
+    float R2 = pow(10, (my_desk.getM() * log10(value) + my_desk.getOffset_R_Lux()));
+    float Req = (R2 * R1) / (R2 + R1);
+    return Req * 10e-6;
+  }
+  else
+  {
+    return 0.1;
+  }
+}

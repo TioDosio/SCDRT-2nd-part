@@ -14,9 +14,9 @@ const float VCC = 3.3;
 const float adc_conv = 4095.0 / VCC;
 const float dutyCycle_conv = 4095.0 / 100.0;
 pid my_pid{0.01, 0.15, 1.5}; // h, k, Tt
-// (float _h, float _K, float Tt_,float b_,float Ti_, float Td_, float N_)
-luminaire my_desk{-0.89, log10(225000) - (-0.89), 0.0158}; // m, b(offset), Pmax, desk_number
-// system my_desk{float _m, float _offset_R_Lux, float _Pmax, unsigned short _desk_number}
+
+luminaire my_desk{-0.89, log10(225000) - (-0.89), 0.0158}; // m, b(offset), Pmax
+
 bool debbuging = false;
 
 communication comm{&my_desk};
@@ -111,7 +111,9 @@ void loop()
 
 void loop1()
 {
+  wakeUp();
   communicationLoop();
+  resendAck();
 }
 
 inline void controllerLoop(float read_adc)
@@ -136,148 +138,6 @@ inline void controllerLoop(float read_adc)
   pwm = u * 4095;
   analogWrite(LED_PIN, pwm);
   my_desk.setDutyCycle(pwm / dutyCycle_conv);
-}
-
-inline void communicationLoop()
-{
-  static unsigned long timer_new_node = 0;
-  long time_now = millis();
-  if (!comm.isConnected())
-  {
-    if (time_now - comm.getConnectTime() > comm.getTimeToConnect())
-    {
-      comm.setConnected(true);
-      my_desk.setDeskNumber(comm.find_desk());
-      comm.connection_msg('A');
-      flag_temp = true; // TODO CONECTAR PARA QUALQUER NUM DE DESKS
-      // TODO Confirmar mensagens de e N antes de correr o new_calibration
-    }
-    else
-    {
-      if (time_now - timer_new_node > 200) // Send a new connection message every 200ms
-      {
-        comm.connection_msg('N');
-        timer_new_node = millis();
-      }
-    }
-  }
-
-  if (data_available)
-  {
-    data_available = false;
-    if (!comm.isMissingAckEmpty()) // Check if there are any missing acks
-    {
-      comm.acknowledge_loop(&node);
-    }
-    else
-    {
-      while (comm.IsMsgAvailable()) // Check if something has been received
-      {
-        can_frame canMsgRx;
-        comm.ReadMsg(&canMsgRx);
-        if (canMsgRx.data[0] == 'S' || canMsgRx.data[2] == comm.int_to_char_msg(my_desk.getDeskNumber()) || canMsgRx.data[2] == comm.int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
-        {
-          comm.add_msg_queue(canMsgRx); // Put all the messages in the queue
-        }
-      }
-
-      while (!comm.isQueueEmpty())
-      {
-        can_frame canMsgRx;
-        canMsgRx = comm.get_msg_queue();
-        switch (canMsgRx.data[0])
-        {
-        case 'W':
-          comm.msg_received_connection(canMsgRx);
-          break;
-        case 'C':
-          comm.msg_received_calibration(canMsgRx);
-          break;
-        case 'S':
-          comm.msg_received_consensus(canMsgRx, &node);
-          break;
-        case 's':
-          runConsensus();
-          break;
-        case 'T':
-        {
-          if (node.getConsensusReady())
-          {
-            comm.consensus_msg_duty(node.getD());
-            node.setConsensusReady(false);
-          }
-          else
-          {
-            if (node.getConsensusRunning())
-            {
-              comm.add_msg_queue(canMsgRx);
-            }
-          }
-        }
-        break;
-        case 'E':
-        {
-          node.setConsensusRunning(false);
-          double l = node.getKIndex(0) * node.getDavIndex(0) + node.getKIndex(1) * node.getDavIndex(1) + node.getKIndex(2) * node.getDavIndex(2) + node.getO();
-          Serial.printf("Luminance: %f\n", l);
-          my_desk.setRef(l);
-        }
-        break;
-        default:
-          // passar de canMsgRx.data[] para string e mandar para o read_command()
-          break;
-        }
-      }
-    }
-  }
-
-  time_now = millis();
-
-  // RESEND LAST MESSAGE IF NO ACK RECEIVED
-  if ((time_now - comm.time_ack_get()) > TIME_ACK && !comm.isMissingAckEmpty())
-  {
-    Serial.printf("RESEND PORQUE NAO RECEBI ACK das desks: ");
-    for (const int &element : comm.getMissingAck())
-    {
-
-      Serial.printf("%d, ", element);
-    }
-    Serial.println();
-    comm.resend_last_msg();
-    comm.time_ack_set(millis());
-  }
-  if (flag_temp && (comm.getNumDesks()) == 3) // Initialize the calibration when all the desks are connected
-  {
-    if (my_desk.getDeskNumber() == 3)
-    {
-      comm.new_calibration();
-    }
-    flag_temp = false;
-  }
-}
-
-void ref_change(float value)
-{
-  my_desk.setRef(value);
-  my_desk.setIgnoreReference(false);
-  my_pid.set_b(my_desk.getRefVolt() / my_desk.getRef(), my_desk.getGain());
-  my_desk.setON(true);
-  my_pid.set_Ti(Tau(my_desk.getRef()));
-}
-
-float Tau(float value)
-{
-  if (value >= 0.5)
-  {
-    float R1 = 10e3;
-    float R2 = pow(10, (my_desk.getM() * log10(value) + my_desk.getOffset_R_Lux()));
-    float Req = (R2 * R1) / (R2 + R1);
-    return Req * 10e-6;
-  }
-  else
-  {
-    return 0.1;
-  }
 }
 
 void runConsensus()
