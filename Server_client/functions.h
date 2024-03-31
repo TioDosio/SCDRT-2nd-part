@@ -1,5 +1,5 @@
-#ifndef FUNCS_H
-#define FUNCS_H
+#ifndef FUNCTIONS_H
+#define FUNCTIONS_H
 
 #include <string>
 
