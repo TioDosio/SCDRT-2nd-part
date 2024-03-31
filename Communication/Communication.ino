@@ -20,12 +20,12 @@ void read_interrupt(uint gpio, uint32_t events)
 void read_command(const String &command)
 {
     int i;
-    int val;
+    float val;
     int this_desk = 2;
 
     if (command.startsWith("d ")) // Set directly the duty cycle of luminaire i.
     {
-        sscanf(command.c_str(), "d %d %d", &i, &val);
+        sscanf(command.c_str(), "d %d %f", &i, &val);
         if (i == this_desk)
         {
             if (val >= 0 && val <= 5000) // DESLIGAR TUDO
@@ -58,7 +58,7 @@ void read_command(const String &command)
     }
 }
 
-void send_to_others(const int desk, const String &commands, const int value, int type)
+void send_to_others(const int desk, const String &commands, const float value, int type)
 {
     struct can_frame canMsgTx;
     if (type == 0)
@@ -69,11 +69,11 @@ void send_to_others(const int desk, const String &commands, const int value, int
     }
     else
     {
-        canMsgTx.can_dlc = 4;
+        canMsgTx.can_dlc = 5;
         canMsgTx.data[0] = commands.charAt(0);
-        Serial.printf("Value: %d\n", value);
+        Serial.printf("Value: %f\n", value);
         Serial.printf("Size: %d -- %d\n", sizeof(unsigned char), sizeof(int));
-        memcpy(&canMsgTx.data[1], &value, sizeof(int)); // TESTAR COM FLOAT
+        memcpy(&canMsgTx.data[1], &value, sizeof(float)); // TESTAR COM FLOAT
     }
     canMsgTx.can_id = desk;
 
@@ -138,8 +138,8 @@ void loop()
             {
                 // Handle "char float" message
                 char char1 = canMsgRx.data[0];
-                int value;
-                memcpy(&value, &canMsgRx.data[1], sizeof(int));
+                float value;
+                memcpy(&value, &canMsgRx.data[1], sizeof(float));
 
                 Serial.print("Received a 'char int' message  ");
                 Serial.print("char1: ");
