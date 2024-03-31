@@ -31,13 +31,12 @@ public:
     ~communication(){};
     int find_desk();
     void acknowledge_loop(Node *node);
-    void start_consensus_msg();
     void calibration_msg(int dest_desk, char type);
     void msg_received_connection(can_frame canMsgRx);
     void msg_received_calibration(can_frame canMsgRx);
     void msg_received_consensus(can_frame canMsgRx, Node *node);
     void msg_received_ack(can_frame canMsgRx, Node *node);
-    void consensus_msg_start(int next_desk);
+    void consensus_msg_switch(int next_desk, char type);
     void consensus_msg_duty(double d[3]);
     void confirm_msg(can_frame ack_msg);
     int char_msg_to_int(char msg);

@@ -25,7 +25,10 @@ void communication::acknowledge_loop(Node *node)
 
     if (canMsgRx.data[0] != 'A')
     {
-      command_queue.push(canMsgRx);
+      if (canMsgRx.data[0] == 'S' || canMsgRx.data[2] == int_to_char_msg(my_desk->getDeskNumber()) || canMsgRx.data[2] == int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
+      {
+        command_queue.push(canMsgRx);
+      }
     }
     else
     {
@@ -44,6 +47,7 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
   switch (canMsgRx.data[0])
   {
   case 'C':
+  {
     switch (canMsgRx.data[1])
     {
     case 'B':
@@ -75,28 +79,29 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
     default:
       break;
     }
+  }
+  break;
   case 'S':
   {
     int next_desk = canMsgRx.can_id + 1 > getNumDesks() ? 1 : canMsgRx.can_id + 1;
     node->setConsensusIterations(node->getConsensusIterations() + 1);
-    if (node->getConsensusIterations() < node->getConsensusMaxIterations())
+
+    if (node->getConsensusIterations() == node->getConsensusMaxIterations() || (node->checkConvergence() && node->checkOtherDIsFull()))
     {
-      consensus_msg_start(next_desk);
-      Serial.printf("Duty cycle: %f %f %f %d\n", node->getDavIndex(0), node->getDavIndex(1), node->getDavIndex(2), node->getConsensusIterations());
-      if (node->getConsensusIterations() == node->getConsensusMaxIterations() - 1)
-      {
-        Serial.printf("FIQUEI FALSE\n");
-        node->setConsensusRunning(false); // Stop the consensus when the max iterations are reached
-      }
+      double l = node->getKIndex(0) * node->getDavIndex(0) + node->getKIndex(1) * node->getDavIndex(1) + node->getKIndex(2) * node->getDavIndex(2) + node->getO();
+      Serial.printf("Luminance: %f\n", l);
+
+      // TODO UPDATE DUTY CYCLE
+      my_desk->setRef(l);
+      node->setConsensusRunning(false); // Stop the consensus when the max iterations are reached
+      consensus_msg_switch(0, 'E');
     }
     else
     {
-      Serial.println("Consensus reached\n");
-      Serial.printf("Duty cycle: %f %f %f %d\n", node->getDavIndex(0), node->getDavIndex(1), node->getDavIndex(2), node->getConsensusIterations());
-      // UPDATE DUTY CYCLE CONTROL INPUT
+      consensus_msg_switch(next_desk, 'T');
     }
-    break;
   }
+  break;
   default:
     break;
   }
@@ -305,26 +310,28 @@ void communication::msg_received_consensus(can_frame canMsgRx, Node *node)
   int index = std::distance(desks_connected.begin(), desks_connected.find(canMsgRx.can_id));
   for (int i = 0; i < 3; i++)
   {
-    d[i] = (static_cast<int>(canMsgRx.data[2 * i + 1]) + (static_cast<int>(canMsgRx.data[2 * i + 2]) << 8)) / 100.0;
+    d[i] = (static_cast<int>(canMsgRx.data[2 * i + 1]) + (static_cast<int>(canMsgRx.data[2 * i + 2]) << 8)) / 10000.0;
   }
   node->setOtherD(index, d);
   //  Send ack
   ack_msg(canMsgRx);
 }
 
-void communication::consensus_msg_start(int dest_desk)
+// Message -> "C E/T {desk_number}" (Consensus End/Transmission)
+void communication::consensus_msg_switch(int dest_desk, char type)
 {
   struct can_frame canMsgTx;
   canMsgTx.can_id = my_desk->getDeskNumber();
   canMsgTx.can_dlc = 8;
-  canMsgTx.data[0] = 'T';
+  canMsgTx.data[0] = type;
   canMsgTx.data[1] = ' ';
   canMsgTx.data[2] = int_to_char_msg(dest_desk);
   int msg;
-  for (int i = 2; i < 8; i++)
+  for (int i = 3; i < 8; i++)
   {
     canMsgTx.data[i] = ' ';
   }
+  err = can0.sendMessage(&canMsgTx);
 }
 
 void communication::consensus_msg_duty(double d[3])
@@ -336,7 +343,7 @@ void communication::consensus_msg_duty(double d[3])
   int msg;
   for (int i = 1, j = 0; i < 7; i += 2, j++)
   {
-    msg = d[j] > 0 ? static_cast<int>(d[j] * 100) : 0;
+    msg = d[j] > 0 ? static_cast<int>(d[j] * 10000) : 0;
     canMsgTx.data[i] = static_cast<unsigned char>(msg & 255);    // Same as msg0 % 256, but more efficient
     canMsgTx.data[i + 1] = static_cast<unsigned char>(msg >> 8); // Same as msg0 / 256, but more efficient
   }
@@ -405,17 +412,4 @@ void communication::delay_manual(unsigned long delay)
   {
     delay_end = millis();
   }
-}
-
-void communication::start_consensus_msg()
-{
-  struct can_frame canMsgTx;
-  canMsgTx.can_id = my_desk->getDeskNumber();
-  canMsgTx.can_dlc = 8;
-  canMsgTx.data[0] = 'T';
-  for (int i = 1; i < 7; i++)
-  {
-    canMsgTx.data[i + 1] = ' ';
-  }
-  add_msg_queue(canMsgTx);
 }

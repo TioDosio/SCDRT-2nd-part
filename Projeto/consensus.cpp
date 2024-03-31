@@ -1,11 +1,10 @@
-#include <iostream>
-#include <cmath>
+#include <iostream> //TOMAS PRECISAS DISTO TODO
 #include "consensus.h"
 
 void Node::initializeNode(double *K, int index, double o)
 {
     this->index = index;
-    rho = 0.7;
+    rho = 0.6;
     for (int i = 0; i < 3; i++)
     {
         d[i] = 0;
@@ -18,7 +17,7 @@ void Node::initializeNode(double *K, int index, double o)
     n = k[0] * k[0] + k[1] * k[1] + k[2] * k[2];
     m = n - k[index] * k[index];
     this->o = o;
-    L = 30.0;
+    L = getCurrentLowerBound();
 }
 
 double Node::evaluateCost(double d[])
@@ -45,7 +44,7 @@ bool Node::checkFeasibility(double d[])
     {
         return false;
     }
-    if (d[index] > 100 + tol)
+    if (d[index] > 1 + tol)
     {
         return false;
     }
@@ -140,13 +139,13 @@ void Node::consensusIterate()
         }
     }
 
-    // Compute minimum constrained to 100 boundary
+    // Compute minimum constrained to 1 boundary
     for (int i = 0; i < SIZE; i++)
     {
         d_temp[i] = (1 / rho) * y[i];
         if (i == index)
         {
-            d_temp[i] = 100;
+            d_temp[i] = 1;
         }
     }
     if (checkFeasibility(d_temp))
@@ -177,14 +176,14 @@ void Node::consensusIterate()
         }
     }
 
-    // Compute minimum constrained to linear and 100 boundary
+    // Compute minimum constrained to linear and 1 boundary
     for (int i = 0; i < SIZE; i++)
     {
-        d_temp[i] = (1 / rho) * y[i] - (1 / m) * k[i] * (o - L + 100 * k[index]) +
+        d_temp[i] = (1 / rho) * y[i] - (1 / m) * k[i] * (o - L + 1 * k[index]) +
                     (1 / rho / m) * k[i] * (k[index] * y[index] - (y[0] * k[0] + y[1] * k[1] + y[2] * k[2]));
         if (i == index)
         {
-            d_temp[i] = 100;
+            d_temp[i] = 1;
         }
     }
     if (checkFeasibility(d_temp))
@@ -196,6 +195,18 @@ void Node::consensusIterate()
         }
     }
 
+    for (int i = 0; i < 3; i++)
+    {
+        if (d_best[i] < 0)
+        {
+            d_best[i] = 0;
+        }
+        else if (d_best[i] > 1)
+        {
+            d_best[i] = 1;
+        }
+    }
+
     // Copy the best d and cost back to the original variables
     copyArray(d, d_best);
     cost = cost_best;
@@ -203,20 +214,23 @@ void Node::consensusIterate()
 
 bool Node::checkConvergence()
 {
-    double tol = 0.01;
+    double tol = 1e-9;
     double norm_squared = 0;
     if (k[0] * getDavIndex(0) + k[1] * getDavIndex(1) + k[2] * getDavIndex(2) + o < L)
     {
         return false;
     }
-    for (int i = 0; i < 3; i++)
+    else if (getConsensusIterations() > 2)
     {
-        double diff = d[i] - lastD[i];
-        norm_squared += diff * diff;
-    }
-    if (norm_squared < tol)
-    {
-        return true;
+        for (int i = 0; i < 3; i++)
+        {
+            double diff = d[i] - lastD[i];
+            norm_squared += diff * diff;
+        }
+        if (norm_squared < tol)
+        {
+            return true;
+        }
     }
     return false;
 }
@@ -269,6 +283,11 @@ double Node::getCost()
     return cost;
 }
 
+void Node::setCost(double value)
+{
+    cost = value;
+}
+
 double Node::getRho()
 {
     return rho;
@@ -282,7 +301,8 @@ double *Node::getLastD()
 void Node::setLowerBoundOccupied(double value)
 {
     lowerBoundOccupied = value;
-    L = lowerBoundOccupied;
+    if (occupancy == 1)
+        L = lowerBoundOccupied;
 }
 
 double Node::getLowerBoundOccupied()
@@ -293,7 +313,8 @@ double Node::getLowerBoundOccupied()
 void Node::setLowerBoundUnoccupied(double value)
 {
     lowerBoundUnoccupied = value;
-    L = lowerBoundUnoccupied;
+    if (occupancy == 0)
+        L = lowerBoundUnoccupied;
 }
 
 double Node::getLowerBoundUnoccupied()
@@ -313,6 +334,11 @@ void Node::setOccupancy(int value)
         occupancy = 0;
         L = getLowerBoundUnoccupied();
     }
+}
+
+int Node::getOccupancy()
+{
+    return occupancy;
 }
 
 double Node::getCurrentLowerBound()
@@ -391,4 +417,14 @@ void Node::setConsensusReady(bool value)
 bool Node::getConsensusReady()
 {
     return consensusReady;
+}
+
+double Node::getKIndex(int index)
+{
+    return k[index];
+}
+
+double Node::getO()
+{
+    return o;
 }

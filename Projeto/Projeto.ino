@@ -5,8 +5,7 @@
 #include "Communication.h"
 #include "extrafunctions.h"
 
-#define TIME_ACK 6000
-#define TIME_TO_WRITE 500
+#define TIME_ACK 2500
 
 // luminaire
 const int LED_PIN = 15;
@@ -201,6 +200,7 @@ inline void communicationLoop()
           runConsensus();
           break;
         case 'T':
+        {
           if (node.getConsensusReady())
           {
             comm.consensus_msg_duty(node.getD());
@@ -208,9 +208,21 @@ inline void communicationLoop()
           }
           else
           {
-            comm.add_msg_queue(canMsgRx);
+            if (node.getConsensusRunning())
+            {
+              comm.add_msg_queue(canMsgRx);
+            }
           }
-          break;
+        }
+        break;
+        case 'E':
+        {
+          node.setConsensusRunning(false);
+          double l = node.getKIndex(0) * node.getDavIndex(0) + node.getKIndex(1) * node.getDavIndex(1) + node.getKIndex(2) * node.getDavIndex(2) + node.getO();
+          Serial.printf("Luminance: %f\n", l);
+          my_desk.setRef(l);
+        }
+        break;
         default:
           // passar de canMsgRx.data[] para string e mandar para o read_command()
           break;
@@ -230,7 +242,7 @@ inline void communicationLoop()
 
       Serial.printf("%d, ", element);
     }
-    Serial.printf("\n");
+    Serial.println();
     comm.resend_last_msg();
     comm.time_ack_set(millis());
   }
@@ -273,8 +285,7 @@ void runConsensus()
   if (comm.getNumDesks() == 3 && my_desk.isON() && !node.getConsensusRunning())
   {
     // NODE INITIALIZATION
-    node.initializeNode(comm.getCouplingGains(), my_desk.getDeskNumber() - 1, comm.getExternalLight()); // TODO VER EXTERNAL LIGHT
-
+    node.initializeNode(comm.getCouplingGains(), my_desk.getDeskNumber() - 1, comm.getExternalLight());
     // RUN CONSENSUS ALGORITHM
     node.setConsensusRunning(true);
     node.setConsensusIterations(0);
@@ -315,28 +326,15 @@ void consensusLoop()
           temp = (node.getDIndex(j) + dutycycle1[j] + dutycycle2[j]) / 3;
           node.setDavIndex(j, temp);
         }
-        Serial.printf("Duty cycle: %f %f %f %d\n", node.getDavIndex(0), node.getDavIndex(1), node.getDavIndex(2), node.getConsensusIterations());
-
         // COMPUTATION OF THE LAGRANGIAN UPDATES
         for (int j = 0; j < 3; j++)
         {
           node.setLambdaIndex(j, node.getLambdaIndex(j) + node.getRho() * (node.getDIndex(j) - node.getDavIndex(j)));
         }
 
-        // Check if a consensus has been reached, if so, break the loop
-        if (/*node.checkConvergence() ||*/ node.getConsensusIterations() >= node.getConsensusMaxIterations())
-        {
-          node.setConsensusRunning(false);
-          Serial.println("Consensus reached\n");
-          Serial.printf("Duty cycle: %f %f %f %d\n", node.getDavIndex(0), node.getDavIndex(1), node.getDavIndex(2), node.getConsensusIterations());
-          // UPDATE DUTY CYCLE CONTROL INPUT
-        }
-        else // If not, update the iteration counter and go back to the iteration stage
-        {
-          consensusStage = consensusStage::CONSENSUSITERATON;
-          // Update the last d values
-          node.copyArray(node.getLastD(), node.getD());
-        }
+        consensusStage = consensusStage::CONSENSUSITERATON;
+        // Update the last d values
+        node.copyArray(node.getLastD(), node.getD());
       }
       break;
     }

@@ -7,9 +7,9 @@ class luminaire
 {
   float m, offset_R_Lux, Pmax, DutyCycle, G, ref_unoccupied, ref_occupied, ref, ref_volt;
   float last_minute_buffer_d[buffer_size], last_minute_buffer_l[buffer_size];
-  bool occupied, lux_flag, duty_flag, ignore_reference, buffer_full, on;
+  bool lux_flag, duty_flag, ignore_reference, buffer_full, on;
   int desk_number, idx_buffer;
-  double Energy_avg, visibility_err, flicker_err, o;
+  double Energy_avg, visibility_err, flicker_err;
   unsigned long counter_avg;
 
 public:
@@ -69,12 +69,6 @@ public:
   }
 
   // Getters
-
-  double getExternalLight() // VER MELHOR FORMA DE FAZER ISTO
-  {
-    return o;
-  }
-
   float getRef() const
   {
     return ref;
@@ -83,11 +77,6 @@ public:
   float getRefVolt() const
   {
     return ref_volt;
-  }
-
-  bool isOccupied() const
-  {
-    return occupied;
   }
 
   bool isON() const

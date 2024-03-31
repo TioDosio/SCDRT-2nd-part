@@ -3,7 +3,7 @@
 
 void read_command(const String &command, float read_adc)
 {
-  int i;
+  int i, flag;
   float val;
   int this_desk = my_desk.getDeskNumber();
 
@@ -63,7 +63,6 @@ void read_command(const String &command, float read_adc)
       Serial.printf("external light: %f\n", comm.getExternalLight());
     }
   }
-
   else if (command.startsWith("r ")) // Set the illuminance reference of luminaire i
   {
     sscanf(command.c_str(), "r %d %f", &i, &val);
@@ -114,17 +113,18 @@ void read_command(const String &command, float read_adc)
   }
   else if (command.startsWith("o ")) // Set the current occupancy state of desk <i>
   {
-    sscanf(command.c_str(), "o %d %f", &i, &val);
+    sscanf(command.c_str(), "o %d %d", &i, &flag);
+    Serial.printf("%s\n", command.c_str());
     if (i == this_desk)
     {
-      if (val == 1 || val == 0)
+      if (flag == 1 || flag == 0)
       {
-        node.setOccupancy(val);
+        node.setOccupancy(flag);
         runConsensus();
         send_to_all('s');
-        comm.start_consensus_msg();
+        start_consensus();
       }
-      else if (val == 2)
+      else if (flag == 2)
       {
         my_desk.setON(false);
         analogWrite(LED_PIN, 0);
@@ -144,7 +144,7 @@ void read_command(const String &command, float read_adc)
     sscanf(command.c_str(), "g o %d", &i);
     if (i == this_desk)
     {
-      Serial.printf("o %d %d\n", i, my_desk.isOccupied());
+      Serial.printf("o %d %d\n", i, node.getOccupancy());
     }
     else
     {
@@ -153,13 +153,13 @@ void read_command(const String &command, float read_adc)
   }
   else if (command.startsWith("a ")) // Set anti-windup state of desk <i>
   {
-    sscanf(command.c_str(), "a %d %f", &i, &val);
+    sscanf(command.c_str(), "a %d %f", &i, &flag);
 
     if (i == this_desk)
     {
-      if (val == 0 or val == 1)
+      if (flag == 0 or flag == 1)
       {
-        my_pid.set_antiwindup(val);
+        my_pid.set_antiwindup(flag);
         Serial.println("ack");
       }
       else
@@ -186,12 +186,12 @@ void read_command(const String &command, float read_adc)
   }
   else if (command.startsWith("k ")) // Set feedback on/off of desk <i>
   {
-    sscanf(command.c_str(), "k %d %f", &i, &val);
+    sscanf(command.c_str(), "k %d %d", &i, &flag);
     if (i == this_desk)
     {
-      if (val == 0 or val == 1)
+      if (flag == 0 or flag == 1)
       {
-        my_pid.set_feedback(val);
+        my_pid.set_feedback(flag);
         Serial.println("ack");
       }
       else
@@ -413,12 +413,18 @@ void read_command(const String &command, float read_adc)
   }
   else if (command.startsWith("O "))
   {
-    sscanf(command.c_str(), "O %d %d", &i, &val);
+    sscanf(command.c_str(), "O %d %f", &i, &val);
     if (i == this_desk)
     {
       if (val > 0)
       {
         node.setLowerBoundOccupied(val);
+        if (node.getOccupancy() == 1)
+        {
+          runConsensus();
+          send_to_all('s');
+          start_consensus();
+        }
       }
       else
       {
@@ -436,7 +442,7 @@ void read_command(const String &command, float read_adc)
     sscanf(command.c_str(), "g O %d", &i);
     if (i == this_desk)
     {
-      node.getLowerBoundOccupied();
+      Serial.printf("O %d %f\n", this_desk, node.getLowerBoundOccupied());
     }
     else
     {
@@ -445,12 +451,18 @@ void read_command(const String &command, float read_adc)
   }
   else if (command.startsWith("U "))
   {
-    sscanf(command.c_str(), "U %d %d", &i, &val);
+    sscanf(command.c_str(), "U %d %f", &i, &val);
     if (i == this_desk)
     {
       if (val > 0)
       {
         node.setLowerBoundUnoccupied(val);
+        if (node.getOccupancy() == 0)
+        {
+          runConsensus();
+          send_to_all('s');
+          start_consensus();
+        }
       }
       else
       {
@@ -468,7 +480,7 @@ void read_command(const String &command, float read_adc)
     sscanf(command.c_str(), "g U %d", &i);
     if (i == this_desk)
     {
-      node.getLowerBoundUnoccupied();
+      Serial.printf("U %d %f\n", this_desk, node.getLowerBoundUnoccupied());
     }
     else
     {
@@ -480,7 +492,7 @@ void read_command(const String &command, float read_adc)
     sscanf(command.c_str(), "g L %d", &i);
     if (i == this_desk)
     {
-      node.getCurrentLowerBound();
+      Serial.printf("L %d %f\n", this_desk, node.getCurrentLowerBound());
     }
     else
     {
@@ -489,10 +501,10 @@ void read_command(const String &command, float read_adc)
   }
   else if (command.startsWith("c "))
   {
-    sscanf(command.c_str(), "c %d %d", &i, &val);
+    sscanf(command.c_str(), "c %d %f", &i, &val);
     if (i == this_desk)
     {
-      // SET COST
+      node.setCost(val);
     }
     else
     {
@@ -504,7 +516,7 @@ void read_command(const String &command, float read_adc)
     sscanf(command.c_str(), "g c %d", &i);
     if (i == this_desk)
     {
-      // GET CURRENT LOWER BOUND
+      Serial.printf("c %d %f\n", this_desk, node.getCost());
     }
     else
     {
@@ -514,6 +526,10 @@ void read_command(const String &command, float read_adc)
   else if (command.startsWith("r"))
   {
     // RESET and recalibrate the system
+  }
+  else if (command.startsWith("D"))
+  {
+    debbuging = !debbuging;
   }
   else
   {
@@ -580,4 +596,18 @@ void send_to_others(const int desk, const String &commands, const float value)
   {
     Serial.printf("Error sending message \n");
   }
+}
+
+void start_consensus()
+{
+  struct can_frame canMsgRx;
+  canMsgRx.can_id = my_desk.getDeskNumber();
+  canMsgRx.can_dlc = 8;
+  canMsgRx.data[0] = 'T';
+  for (int i = 1; i < 7; i++)
+  {
+    canMsgRx.data[i + 1] = ' ';
+  }
+  comm.add_msg_queue(canMsgRx);
+  data_available = true;
 }

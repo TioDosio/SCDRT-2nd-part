@@ -2,6 +2,7 @@
 #define CONSENSUS
 
 #include <Arduino.h>
+#include <cmath>
 
 class Node
 {
@@ -15,14 +16,14 @@ private:
     double m;
     double c[3];
     double o;
-    double L;
     double rho;
     double cost;
-    double lastD[3];
+    double lastD[3] = {-1, -1, -1};
     double otherD[2][3];
-    int occupancy;
-    double lowerBoundOccupied = 10;
-    double lowerBoundUnoccupied = 3;
+    int occupancy = 0;
+    double lowerBoundOccupied = 20;
+    double lowerBoundUnoccupied = 5;
+    double L = lowerBoundUnoccupied;
     bool consensusRunning = false;
     bool consensusReady = false;
     int consensusIteration = 0;
@@ -35,6 +36,8 @@ public:
     void initializeNode(double *K, int index, double o);
     void consensusIterate();
     bool checkConvergence();
+    double getKIndex(int index);
+    double getO();
     double *getDav();
     double getDavIndex(int index);
     void setDavIndex(int index, double value);
@@ -44,6 +47,7 @@ public:
     double getLambdaIndex(int index);
     void setLambdaIndex(int index, double value);
     double getCost();
+    void setCost(double value);
     double getRho();
     double *getLastD();
     void copyArray(double dest[], double src[]);
@@ -52,6 +56,7 @@ public:
     void setLowerBoundUnoccupied(double value);
     double getLowerBoundUnoccupied();
     void setOccupancy(int value);
+    int getOccupancy();
     double getCurrentLowerBound();
     void setConsensusRunning(bool value);
     bool getConsensusRunning();
