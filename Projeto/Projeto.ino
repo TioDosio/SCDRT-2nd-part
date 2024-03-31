@@ -8,7 +8,7 @@
 #define TIME_ACK 2500
 
 // luminaire
-const int LED_PIN = 15;
+const int LED_PIN = 15; // led pin
 const int DAC_RANGE = 4096;
 const float VCC = 3.3;
 const float adc_conv = 4095.0 / VCC;
