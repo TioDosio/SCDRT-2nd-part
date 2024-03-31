@@ -1,5 +1,6 @@
-#include <hardware/flash.h> //for flash_get_unique_id
+#include <hardware/flash.h>
 #include "mcp2515.h"
+
 uint8_t this_pico_flash_id[8], node_address;
 struct can_frame canMsgTx, canMsgRx;
 unsigned long counterTx{0}, counterRx{0};
@@ -9,12 +10,76 @@ unsigned long write_delay{10};
 const byte interruptPin{20};
 volatile byte data_available{false};
 MCP2515 can0{spi0, 17, 19, 16, 18, 10000000};
+
 // the interrupt service routine
 void read_interrupt(uint gpio, uint32_t events)
 {
     data_available = true;
 }
-int i = 0;
+
+void read_command(const String &command)
+{
+    int i;
+    int val;
+    int this_desk = 2;
+
+    if (command.startsWith("d ")) // Set directly the duty cycle of luminaire i.
+    {
+        sscanf(command.c_str(), "d %d %d", &i, &val);
+        if (i == this_desk)
+        {
+            if (val >= 0 && val <= 5000) // DESLIGAR TUDO
+            {
+                Serial.println("Recebido AQUI");
+            }
+            else
+            {
+                Serial.println("err");
+            }
+        }
+        else
+        {
+            Serial.println("enviado");
+            send_to_others(i, "d", val, 1);
+        }
+    }
+    else if (command.startsWith("g ")) // Get the duty cycle of luminaire i.
+    {
+        sscanf(command.c_str(), "g %d", &i);
+        if (i == this_desk)
+        {
+            Serial.println("Recebido AQUI");
+        }
+        else
+        {
+            Serial.println("enviado");
+            send_to_others(i, "g a", 0, 0);
+        }
+    }
+}
+
+void send_to_others(const int desk, const String &commands, const int value, int type)
+{
+    struct can_frame canMsgTx;
+    if (type == 0)
+    {
+        canMsgTx.can_dlc = 2;
+        canMsgTx.data[0] = commands.charAt(0);
+        canMsgTx.data[1] = commands.charAt(2);
+    }
+    else
+    {
+        canMsgTx.can_dlc = 4;
+        canMsgTx.data[0] = commands.charAt(0);
+        Serial.printf("Value: %d\n", value);
+        Serial.printf("Size: %d -- %d\n", sizeof(unsigned char), sizeof(int));
+        memcpy(&canMsgTx.data[1], &value, sizeof(int)); // TESTAR COM FLOAT
+    }
+    canMsgTx.can_id = desk;
+
+    can0.sendMessage(&canMsgTx);
+}
+
 void setup()
 {
     flash_get_unique_id(this_pico_flash_id);
@@ -28,46 +93,13 @@ void setup()
         true, &read_interrupt);
     time_to_write = millis() + write_delay;
 }
+
 void loop()
 {
-    if (millis() >= time_to_write)
+    if (Serial.available() > 0)
     {
-        i++;
-        canMsgTx.can_id = node_address;
-        canMsgTx.can_dlc = 8;
-
-        // Serialize integers into bytes
-        int value1 = i;     // Example value
-        int value2 = i * 2; // Example value
-        memcpy(canMsgTx.data, &value1, sizeof(value1));
-        memcpy(canMsgTx.data + sizeof(value1), &value2, sizeof(value2));
-
-        err = can0.sendMessage(&canMsgTx);
-        if (err != MCP2515::ERROR_OK)
-        {
-            Serial.print("Error sending message (");
-            Serial.print(err);
-            Serial.println(")");
-        }
-        else if (err == MCP2515::ERROR_FAILTX)
-        {
-            Serial.println("Failed to send message");
-        }
-        else if (err == MCP2515::ERROR_ALLTXBUSY)
-        {
-            Serial.println("All TX buffers busy");
-        }
-        else
-        {
-            Serial.print("Sending message ");
-            Serial.print(value1);
-            Serial.print(" and ");
-            Serial.print(value2);
-            Serial.print(" from node ");
-            Serial.println(node_address, HEX);
-            counterTx++;
-            time_to_write = millis() + write_delay;
-        }
+        String command = Serial.readStringUntil('\n');
+        read_command(command);
     }
     if (data_available)
     {
@@ -88,22 +120,38 @@ void loop()
         }
         else
         {
-            Serial.print("Received message number ");
-            Serial.print(counterRx++);
-            Serial.print(" from node ");
-            Serial.print(canMsgRx.can_id, HEX);
-            Serial.print(" : ");
+            int desk = canMsgRx.can_id;
+            // Determine the type of message based on the data payload length
+            if (canMsgRx.can_dlc == 2) // g a for example
+            {
+                // Handle "char char float" message
+                char char1 = canMsgRx.data[0];
+                char char2 = canMsgRx.data[1];
 
-            // Deserialize bytes into integers
-            int received_value1, received_value2;
-            memcpy(&received_value1, canMsgRx.data, sizeof(received_value1));
-            memcpy(&received_value2, canMsgRx.data + sizeof(received_value1), sizeof(received_value2));
+                Serial.println("Received a 'char char' message  ");
+                Serial.print("char1: ");
+                Serial.println(char1);
+                Serial.print("char2: ");
+                Serial.println(char2);
+            }
+            else if (canMsgRx.can_dlc == 5) // r 10 for example
+            {
+                // Handle "char float" message
+                char char1 = canMsgRx.data[0];
+                int value;
+                memcpy(&value, &canMsgRx.data[1], sizeof(int));
 
-            Serial.print("Value 1: ");
-            Serial.print(received_value1);
-            Serial.print(", Value 2: ");
-            Serial.println(received_value2);
-
+                Serial.print("Received a 'char int' message  ");
+                Serial.print("char1: ");
+                Serial.println(char1);
+                Serial.print("value: ");
+                Serial.println(value);
+            }
+            else
+            {
+                // Handle invalid message length
+                Serial.println("Received an invalid message");
+            }
             data_available = false;
         }
     }
