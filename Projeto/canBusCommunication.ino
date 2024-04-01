@@ -1,3 +1,4 @@
+#include <string>
 inline void communicationLoop()
 {
     if (data_available)
@@ -23,47 +24,108 @@ inline void communicationLoop()
             {
                 can_frame canMsgRx;
                 canMsgRx = comm.get_msg_queue();
-                switch (canMsgRx.data[0])
+                if (canMsgRx.can_dlc == 2) // char char (gets)
                 {
-                case 'W':
-                    comm.msg_received_connection(canMsgRx);
-                    break;
-                case 'C':
-                    comm.msg_received_calibration(canMsgRx);
-                    break;
-                case 'S':
-                    comm.msg_received_consensus(canMsgRx, &node);
-                    break;
-                case 's':
-                    runConsensus();
-                    break;
-                case 'T':
+                    String command;
+                    command.concat(canMsgRx.data[0]);
+                    command.concat(" ");
+                    command.concat(canMsgRx.data[1]);
+                    command.concat(" ");
+                    command.concat(canMsgRx.can_id);
+
+                    read_command(command, 1);
+                }
+                else if (canMsgRx.can_dlc == 3) // char char char (g b d or g b l)
                 {
-                    if (node.getConsensusReady())
+                    String command;
+                    command.concat(canMsgRx.data[0]);
+                    command.concat(" ");
+                    command.concat(canMsgRx.data[1]);
+                    command.concat(" ");
+                    command.concat(canMsgRx.data[2]);
+                    command.concat(" ");
+                    command.concat(canMsgRx.can_id);
+
+                    read_command(command, 1);
+                }
+                else if (canMsgRx.can_dlc == 5) // char int float (sets)
+                {
+                    String command;
+                    float value;
+                    memcpy(&value, &canMsgRx.data[1], sizeof(float));
+
+                    command.concat(canMsgRx.data[0]);
+                    command.concat(" ");
+                    if (canMsgRx.data[0] == 'o' || canMsgRx.data[0] == 'a' || canMsgRx.data[0] == 'k')
                     {
-                        comm.consensus_msg_duty(node.getD());
-                        node.setConsensusReady(false);
+                        command.concat(static_cast<int>(value));
                     }
                     else
                     {
-                        if (node.getConsensusRunning())
+                        command.concat(value);
+                    }
+                    read_command(command, 1);
+                }
+                else
+                {
+                    switch (canMsgRx.data[0])
+                    {
+                    case 'W':
+                        comm.msg_received_connection(canMsgRx);
+                        break;
+                    case 'C':
+                        comm.msg_received_calibration(canMsgRx);
+                        break;
+                    case 'S': // TODO: escolher outro
+                        comm.msg_received_consensus(canMsgRx, &node);
+                        break;
+                    case 's': // TODO: escolher outro
+                        runConsensus();
+                        break;
+                    case 'T':
+                    {
+                        if (node.getConsensusReady())
                         {
-                            comm.add_msg_queue(canMsgRx);
+                            comm.consensus_msg_duty(node.getD());
+                            node.setConsensusReady(false);
+                        }
+                        else
+                        {
+                            if (node.getConsensusRunning())
+                            {
+                                comm.add_msg_queue(canMsgRx);
+                            }
                         }
                     }
-                }
-                break;
-                case 'E':
-                {
-                    node.setConsensusRunning(false);
-                    double l = node.getKIndex(0) * node.getDavIndex(0) + node.getKIndex(1) * node.getDavIndex(1) + node.getKIndex(2) * node.getDavIndex(2) + node.getO();
-                    Serial.printf("Luminance: %f\n", l);
-                    my_desk.setRef(l);
-                }
-                break;
-                default:
-                    // passar de canMsgRx.data[] para string e mandar para o read_command()
                     break;
+                    case 'E':
+                    {
+                        node.setConsensusRunning(false);
+                        double l = node.getKIndex(0) * node.getDavIndex(0) + node.getKIndex(1) * node.getDavIndex(1) + node.getKIndex(2) * node.getDavIndex(2) + node.getO();
+                        Serial.printf("Luminance: %f\n", l);
+                        my_desk.setRef(l);
+                    }
+                    break;
+                    case 'e':
+                    {
+                        if (my_desk.getHub())
+                        {
+                            Serial.println("err");
+                        }
+                    }
+                    break;
+                    case 'a':
+                    {
+                        if (my_desk.getHub())
+                        {
+                            Serial.println("ack");
+                        }
+                    }
+                    break;
+                    default:
+                        // passar de canMsgRx.data[] para string e mandar para o read_command()
+                        break;
+                    }
                 }
             }
         }
@@ -80,6 +142,10 @@ void wakeUp()
         {
             comm.setConnected(true);
             my_desk.setDeskNumber(comm.find_desk());
+            if (my_desk.getDeskNumber() == 1)
+            {
+                my_desk.setHub();
+            }
             comm.connection_msg('A');
             flag_temp = true; // TODO CONECTAR PARA QUALQUER NUM DE DESKS
                               // TODO Confirmar mensagens de e N antes de correr o new_calibration

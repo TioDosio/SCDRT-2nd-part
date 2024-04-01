@@ -102,7 +102,7 @@ void loop()
       if (Serial.available() > 0)
       {
         String command = Serial.readStringUntil('\n');
-        read_command(command, read_adc);
+        read_command(command, 0);
       }
       real_time_stream_of_data(time / 1000, lux);
     }

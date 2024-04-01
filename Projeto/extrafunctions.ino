@@ -64,3 +64,24 @@ float Tau(float value)
     return 0.1;
   }
 }
+
+void send_ack_err(int cmd) // 0-err    1-ack
+{
+  struct can_frame canMsgTx;
+  if (cmd == 0)
+  {
+    canMsgTx.can_dlc = 1;
+    canMsgTx.data[0] = 'e';
+  }
+  else if (cmd == 1)
+  {
+    canMsgTx.can_dlc = 1;
+    canMsgTx.data[0] = 'a';
+  }
+
+  comm.sendMsg(&canMsgTx);
+  if (comm.getError() != MCP2515::ERROR_OK)
+  {
+    Serial.printf("Error sending message \n");
+  }
+}

@@ -1,7 +1,20 @@
 - Critical sections em variaveis partilhadas;
-- Fazer função de reencaminhar mensagens que chegam do hub para os outros (quando os outros recebem não é para partilharem de novo, ver isso);
-- Fazer funções de sets e gets que faltam das novas features;
-- Quando o HUB receber comandos analisa se é para ele ou não, e processa ou envia para os outros;
-- Colocar funções dos gets, energy, flicker, etc...;
+
 - Pensar como fazer o stream de dados (mandar mensagem cada loop?);
+
 - Implementar print do last minute buffer;
+
+- Mandar msgs
+
+- Hub
+
+- Função para mandar uma mensagem geral (qualquer uma por input de entrada)
+
+- se NÃO formos HUB quando recebemos um set processamos;
+    se formos o HUB quando recebemos um set enviamos pelo serial;
+ 
+- se NÃO formos o hub NÃO reencaminhamos as mensages que nao formos nós
+
+- todos os Acks e Errs que o HUB recebe dá Serial.print -> Done, não testado 
+
+- erros de envio de mensagem a serem mandados pelo can-bus para serem apresentados no Server -> Ver com alfa porque podemos ja ter

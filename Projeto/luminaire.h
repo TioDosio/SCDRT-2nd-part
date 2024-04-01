@@ -7,7 +7,7 @@ class luminaire
 {
   float m, offset_R_Lux, Pmax, DutyCycle, G, ref_unoccupied, ref_occupied, ref, ref_volt;
   float last_minute_buffer_d[buffer_size], last_minute_buffer_l[buffer_size];
-  bool lux_flag, duty_flag, ignore_reference, buffer_full, on;
+  bool lux_flag, duty_flag, ignore_reference, buffer_full, on, hub;
   int desk_number, idx_buffer;
   double Energy_avg, visibility_err, flicker_err;
   unsigned long counter_avg;
@@ -162,6 +162,14 @@ public:
   float getFlickerErr() const
   {
     return flicker_err / counter_avg;
+  }
+  void setHub()
+  {
+    hub = true;
+  }
+  bool getHub()
+  {
+    return hub;
   }
 };
 
