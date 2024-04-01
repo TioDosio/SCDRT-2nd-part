@@ -73,7 +73,7 @@ void send_to_others(const int desk, const String &commands, const float value, i
         canMsgTx.data[0] = commands.charAt(0);
         Serial.printf("Value: %f\n", value);
         Serial.printf("Size: %d -- %d\n", sizeof(unsigned char), sizeof(int));
-        memcpy(&canMsgTx.data[1], &value, sizeof(float)); // TESTAR COM FLOAT
+        memcpy(&canMsgTx.data[1], &value, sizeof(float));
     }
     canMsgTx.can_id = desk;
 
