@@ -67,13 +67,20 @@ void send_to_others(const int desk, const String &commands, const float value, i
         canMsgTx.data[0] = commands.charAt(0);
         canMsgTx.data[1] = commands.charAt(2);
     }
-    else
+    else if (type == 1)
     {
         canMsgTx.can_dlc = 5;
         canMsgTx.data[0] = commands.charAt(0);
         Serial.printf("Value: %f\n", value);
         Serial.printf("Size: %d -- %d\n", sizeof(unsigned char), sizeof(int));
         memcpy(&canMsgTx.data[1], &value, sizeof(float));
+    }
+    else
+    {
+        canMsgTx.can_dlc = 3;
+        canMsgTx.data[0] = commands.charAt(0);
+        canMsgTx.data[1] = commands.charAt(2);
+        canMsgTx.data[2] = commands.charAt(4);
     }
     canMsgTx.can_id = desk;
 
