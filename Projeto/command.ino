@@ -27,7 +27,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "d", val, 1);
     }
   }
   else if (command.startsWith("g d ")) // Get current duty cycle of luminaire i
@@ -39,7 +39,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g d", 0, 0);
     }
   }
 
@@ -80,7 +80,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "r", val, 1);
     }
   }
   else if (command.startsWith("g r ")) // Get current illuminance reference of luminaire i
@@ -92,7 +92,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g r", 0, 0);
     }
   }
   else if (command.startsWith("g l ")) // Measure the illuminance of luminaire i
@@ -108,7 +108,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g l", 0, 0);
     }
   }
   else if (command.startsWith("o ")) // Set the current occupancy state of desk <i>
@@ -136,7 +136,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "o", static_cast<float>(flag), 1);
     }
   }
   else if (command.startsWith("g o ")) // Get the current occupancy state of desk <i>
@@ -148,7 +148,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g o", 0, 0);
     }
   }
   else if (command.startsWith("a ")) // Set anti-windup state of desk <i>
@@ -169,7 +169,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "a", static_cast<float>(flag), 1);
     }
   }
   else if (command.startsWith("g a ")) // Get anti-windup state of desk <i>
@@ -181,7 +181,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g a", 0, 0);
     }
   }
   else if (command.startsWith("k ")) // Set feedback on/off of desk <i>
@@ -201,7 +201,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "k", static_cast<float>(flag), 1);
     }
   }
   else if (command.startsWith("g k ")) // Get feedback state of desk <i>
@@ -213,7 +213,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g k", 0, 0);
     }
   }
   else if (command.startsWith("g x ")) // Get current external illuminance of desk <i>
@@ -227,7 +227,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g x", 0, 0);
     }
   }
   else if (command.startsWith("g p ")) // Get instantaneous power consumption of desk <i>
@@ -240,7 +240,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g p", 0, 0);
     }
   }
   else if (command.startsWith("g t ")) // Get the elapsed time since the last restart
@@ -253,7 +253,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g t", 0, 0);
     }
   }
   else if (command.startsWith("s ")) // Start the stream of the real-time variable <x> of desk <i>. <x> can be 'l' or 'd'.
@@ -279,7 +279,12 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      std::string result;
+      result += "s"; // Add 's'
+      result += " "; // Add ' '
+      result += x;   // Add 'd' or 'l'
+
+      send_to_others(i, result, 0, 0);
     }
   }
   else if (command.startsWith("S ")) // Stop the stream of the real-time variable <x> of desk <i>. <x> can be 'l' or 'd'.
@@ -305,7 +310,12 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      std::string result;
+      result += "S"; // Add 'S'
+      result += " "; // Add ' '
+      result += x;   // Add 'd' or 'l'
+
+      send_to_others(i, result, 0, 0);
     }
   }
   else if (command.startsWith("g b ")) // Get the last minute buffer of the variable <x> of the desk <i>. <x> can be 'l' or 'd'.
@@ -372,7 +382,14 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      std::string result;
+      result += "g"; // Add 'S'
+      result += " "; // Add ' '
+      result += "b"; // Add ' '
+      result += " "; // Add ' '
+      result += x;   // Add 'd' or 'l'
+
+      send_to_others(i, result, 0, 2);
     }
   }
   else if (command.startsWith("g e ")) // Get the average energy consumption at the desk <i> since the last system restart.
@@ -384,7 +401,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g e", 0, 0);
     }
   }
   else if (command.startsWith("g v ")) // Get the average visibility error at desk <i> since the last system restart.
@@ -396,7 +413,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g v", 0, 0);
     }
   }
   else if (command.startsWith("g f ")) // Get the average flicker error on desk <i> since the last system restart.
@@ -408,7 +425,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g f", 0, 0);
     }
   }
   else if (command.startsWith("O "))
@@ -434,7 +451,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "O", val, 1);
     }
   }
   else if (command.startsWith("g O"))
@@ -446,7 +463,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g O", 0, 0);
     }
   }
   else if (command.startsWith("U "))
@@ -472,7 +489,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "U", val, 1);
     }
   }
   else if (command.startsWith("g U"))
@@ -484,7 +501,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g U", 0, 0);
     }
   }
   else if (command.startsWith("g L"))
@@ -496,7 +513,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g L", 0, 0);
     }
   }
   else if (command.startsWith("c "))
@@ -508,7 +525,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "c", val, 1);
     }
   }
   else if (command.startsWith("g c"))
@@ -520,7 +537,7 @@ void read_command(const String &command, float read_adc)
     }
     else
     {
-      // NOT THIS DESK
+      send_to_others(i, "g c", 0, 0);
     }
   }
   else if (command.startsWith("r"))
@@ -530,10 +547,6 @@ void read_command(const String &command, float read_adc)
   else if (command.startsWith("D"))
   {
     debbuging = !debbuging;
-  }
-  else
-  {
-    // ERROR
   }
   return;
 }
@@ -574,28 +587,33 @@ void send_to_all(char type) //
   }
 }
 
-void send_to_others(const int desk, const String &commands, const float value)
+void send_to_others(const int desk, const String &commands, const float value, int type)
 {
   struct can_frame canMsgTx;
-  canMsgTx.can_dlc = 8;
+  if (type == 0) // to send get messages <char> <char>
+  {
+    canMsgTx.can_dlc = 2;
+    canMsgTx.data[0] = commands.charAt(0);
+    canMsgTx.data[1] = commands.charAt(2);
+  }
+  else if (type == 1) // to send set messages <char> <float>
+  {
+    canMsgTx.can_dlc = 5;
+    canMsgTx.data[0] = commands.charAt(0);
+    Serial.printf("Value: %f\n", value);
+    Serial.printf("Size: %d -- %d\n", sizeof(unsigned char), sizeof(int));
+    memcpy(&canMsgTx.data[1], &value, sizeof(float));
+  }
+  else // to send get messages <char> <char> <char> only for "g b l" and "g b d"
+  {
+    canMsgTx.can_dlc = 3;
+    canMsgTx.data[0] = commands.charAt(0);
+    canMsgTx.data[1] = commands.charAt(2);
+    canMsgTx.data[2] = commands.charAt(4);
+  }
   canMsgTx.can_id = desk;
 
-  size_t numElements = commands.length();
-
-  for (size_t i = 0; i < numElements && i < 8; i++) // iterate over the characters of the string
-  {
-    canMsgTx.data[i] = static_cast<uint8_t>(commands[i]); // convert character to uint8_t
-  }
-  if (value != -1) // if it's a set
-  {
-    memcpy(canMsgTx.data + (numElements * sizeof(char)), &value, sizeof(value));
-  }
-
-  comm.sendMsg(&canMsgTx);
-  if (comm.getError() != MCP2515::ERROR_OK)
-  {
-    Serial.printf("Error sending message \n");
-  }
+  can0.sendMessage(&canMsgTx);
 }
 
 void start_consensus()
