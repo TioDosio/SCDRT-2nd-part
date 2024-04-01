@@ -47,7 +47,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         Serial.println(buffer);
       }
-      else // if from serial and is not my desk, send to others
+      else if (!fromCanBus) // if from serial and is not my desk, send to others
       {
         send_to_others(i, "d", val, 1);
       }
@@ -275,70 +275,139 @@ void read_command(const String &buffer, bool fromCanBus)
         Serial.printf("s %c %d %f %d\n", x, i, val, time);
       }
     }
-  }
-  break;
-case 'S':
-  sscanf(buffer.c_str(), "S %c %d", &x, &i);
-  if (i == this_desk)
-  {
-    if (x == 'l')
+    break;
+  case 'S':
+    sscanf(buffer.c_str(), "S %c %d", &x, &i);
+    if (i == this_desk)
     {
-      my_desk.setLuxFlag(false);
-      if (fromCanBus)
+      if (x == 'l')
       {
-        send_ack_err(1);
+        my_desk.setLuxFlag(false);
+        if (fromCanBus)
+        {
+          send_ack_err(1);
+        }
+        else
+        {
+          Serial.println("ack");
+        }
+      }
+      else if (x == 'd')
+      {
+        my_desk.setDutyFlag(false);
+        if (fromCanBus)
+        {
+          send_ack_err(1);
+        }
+        else
+        {
+          Serial.println("ack");
+        }
       }
       else
       {
-        Serial.println("ack");
+        if (fromCanBus)
+        {
+          send_ack_err(0);
+        }
+        else
+        {
+          Serial.println("err");
+        }
       }
     }
-    else if (x == 'd')
+    else if (my_desk.getHub())
     {
-      my_desk.setDutyFlag(false);
-      if (fromCanBus)
-      {
-        send_ack_err(1);
-      }
-      else
-      {
-        Serial.println("ack");
-      }
-    }
-    else
-    {
-      if (fromCanBus)
-      {
-        send_ack_err(0);
-      }
-      else
-      {
-        Serial.println("err");
-      }
-    }
-  }
-  else if (my_desk.getHub())
-  {
-    String result;
-    result.concat('S'); // Add 'S'
-    result.concat(x);   // Add 'd' or 'l'
+      String result;
+      result.concat('S'); // Add 'S'
+      result.concat(x);   // Add 'd' or 'l'
 
-    send_to_others(i, result, 0, 0);
-  }
-  break;
-case 'O':
-  sscanf(buffer.c_str(), "O %d %f", &i, &val);
-  if (i == this_desk)
-  {
-    if (val > 0)
+      send_to_others(i, result, 0, 0);
+    }
+    break;
+  case 'O':
+    sscanf(buffer.c_str(), "O %d %f", &i, &val);
+    if (i == this_desk)
     {
-      node.setLowerBoundOccupied(val);
-      if (node.getOccupancy() == 1)
+      if (val > 0)
       {
-        runConsensus();
-        send_to_all('s');
-        start_consensus();
+        node.setLowerBoundOccupied(val);
+        if (node.getOccupancy() == 1)
+        {
+          runConsensus();
+          send_to_all('s');
+          start_consensus();
+        }
+        if (fromCanBus)
+        {
+          send_ack_err(1);
+        }
+        else
+        {
+          Serial.println("ack");
+        }
       }
+      else
+      {
+        if (fromCanBus)
+        {
+          send_ack_err(0);
+        }
+        else
+        {
+          Serial.println("err");
+        }
+      }
+    }
+    else
+    {
+      send_to_others(i, "O", val, 1);
+    }
+    break;
+  case 'U':
+    sscanf(buffer.c_str(), "U %d %f", &i, &val);
+    if (i == this_desk)
+    {
+      if (val > 0)
+      {
+        node.setLowerBoundUnoccupied(val);
+        if (node.getOccupancy() == 0)
+        {
+          runConsensus();
+          send_to_all('s');
+          start_consensus();
+        }
+        if (fromCanBus)
+        {
+          send_ack_err(1);
+        }
+        else
+        {
+          Serial.println("ack");
+        }
+      }
+      else
+      {
+        if (fromCanBus)
+        {
+          send_ack_err(0);
+        }
+        else if (!fromCanBus)
+        {
+          Serial.println("err");
+        }
+      }
+    }
+    else
+    {
+      send_to_others(i, "U", val, 1);
+    }
+    break;
+  case 'c':
+    sscanf(buffer.c_str(), "c %d %f", &i, &val);
+    if (i == this_desk)
+    {
+      node.setCost(val);
       if (fromCanBus)
       {
         send_ack_err(1);
@@ -350,65 +419,11 @@ case 'O':
     }
     else
     {
-      if (fromCanBus)
-      {
-        send_ack_err(0);
-      }
-      else
-      {
-        Serial.println("err");
-      }
+      send_to_others(i, "c", val, 1);
     }
-  }
-  else
-  {
-    send_to_others(i, "O", val, 1);
-  }
-  break;
-case 'U':
-  sscanf(buffer.c_str(), "U %d %f", &i, &val);
-  if (i == this_desk)
-  {
-    if (val > 0)
-    {
-      node.setLowerBoundUnoccupied(val);
-      if (node.getOccupancy() == 0)
-      {
-        runConsensus();
-        send_to_all('s');
-        start_consensus();
-      }
-      if (fromCanBus)
-      {
-        send_ack_err(1);
-      }
-      else
-      {
-        Serial.println("ack");
-      }
-    }
-    else
-    {
-      if (fromCanBus)
-      {
-        send_ack_err(0);
-      }
-      else
-      {
-        Serial.println("err");
-      }
-    }
-  }
-  else
-  {
-    send_to_others(i, "U", val, 1);
-  }
-  break;
-case 'c':
-  sscanf(buffer.c_str(), "c %d %f", &i, &val);
-  if (i == this_desk)
-  {
-    node.setCost(val);
+    break;
+  case 'D':
+    debbuging = !debbuging;
     if (fromCanBus)
     {
       send_ack_err(1);
@@ -417,325 +432,303 @@ case 'c':
     {
       Serial.println("ack");
     }
-  }
-  else
-  {
-    send_to_others(i, "c", val, 1);
-  }
-  break;
-case 'D':
-  debbuging = !debbuging;
-  if (fromCanBus)
-  {
-    send_ack_err(1);
-  }
-  else
-  {
-    Serial.println("ack");
-  }
-  break;
-case 'g':
-  secondCommand = buffer.charAt(2);
-  switch (secondCommand)
-  {
-  case 'd':
-    sscanf(buffer.c_str(), "g d %d", &i);
-    if (i == this_desk) // if the desk is mine
+    break;
+  case 'g':
+    secondCommand = buffer.charAt(2);
+    switch (secondCommand)
     {
-      if (fromCanBus) // if from can bus and is my desk, process message and send to others
+    case 'd':
+      sscanf(buffer.c_str(), "g d %d", &i);
+      if (i == this_desk) // if the desk is mine
       {
-        send_to_others(i, "d", my_desk.getDutyCycle(), 1);
+        if (fromCanBus) // if from can bus and is my desk, process message and send to others
+        {
+          send_to_others(i, "d", my_desk.getDutyCycle(), 1);
+        }
+        else // if from serial and is my desk, print
+        {
+          Serial.printf("d %d %f\n", i, my_desk.getDutyCycle());
+        }
       }
-      else // if from serial and is my desk, print
-      {
-        Serial.printf("d %d %f\n", i, my_desk.getDutyCycle());
-      }
-    }
-    else // if the desk is not mine
-    {
-      if (fromCanBus && my_desk.getHub()) // if from can bus and is not my desk, print
-      {
-        Serial.printf("d %d %f\n", i, my_desk.getDutyCycle());
-      }
-      else // if from serial and is not my desk, send to others
+      else if (my_desk.getHub()) // if the desk is not mine
       {
         send_to_others(i, "g d", 0, 0);
       }
-    }
-    break;
-  case 'r':
-    sscanf(buffer.c_str(), "g r %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("r %d %f\n", i, my_desk.getRef());
-    }
-    else
-    {
-      send_to_others(i, "g r", 0, 0);
-    }
-    break;
-  case 'l':
-    sscanf(buffer.c_str(), "g l %d", &i);
-    if (i == this_desk)
-    {
-      int read_adc_new;
-      float Lux;
-      read_adc_new = digital_filter(20.0);
-      Lux = adc_to_lux(read_adc_new);
-      Serial.printf("l %d %f\n", this_desk, Lux);
-    }
-    else
-    {
-      send_to_others(i, "g l", 0, 0);
-    }
-    break;
-  case 'o':
-    sscanf(buffer.c_str(), "g o %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("o %d %d\n", i, node.getOccupancy());
-    }
-    else
-    {
-      send_to_others(i, "g o", 0, 0);
-    }
-    break;
-  case 'a':
-    sscanf(buffer.c_str(), "g a %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("a %d %d\n", i, my_pid.get_antiwindup());
-    }
-    else
-    {
-      send_to_others(i, "g a", 0, 0);
-    }
-    break;
-  case 'k':
-    sscanf(buffer.c_str(), "g k %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("k %d %d\n", i, my_pid.get_feedback());
-    }
-    else
-    {
-      send_to_others(i, "g k", 0, 0);
-    }
-    break;
-  case 'x':
-    sscanf(buffer.c_str(), "g x %d", &i);
-    if (i == this_desk)
-    {
-      // float Lux = adc_to_lux(read_adc); // TODO: verificar se podemos usar o valor do getExternalLight()
-      // Lux = max(0, Lux - (volt_to_lux(my_desk.getDutyCycle() * dutyCycle_conv * my_desk.getGain())));
-      Serial.printf("x %d %f\n", this_desk, comm.getExternalLight());
-    }
-    else
-    {
-      send_to_others(i, "g x", 0, 0);
-    }
-    break;
-  case 'p':
-    sscanf(buffer.c_str(), "g p %d", &i);
-    if (i == this_desk)
-    {
-      float power = my_desk.getPmax() * my_desk.getDutyCycle() / 100.0;
-      Serial.printf("p %d %f\n", this_desk, power);
-    }
-    else
-    {
-      send_to_others(i, "g p", 0, 0);
-    }
-    break;
-  case 't':
-    sscanf(buffer.c_str(), "g t %d", &i);
-    if (i == this_desk)
-    {
-      unsigned long final_time = millis();
-      Serial.printf("t %d %ld\n", this_desk, final_time / 1000);
-    }
-    else
-    {
-      send_to_others(i, "g t", 0, 0);
-    }
-    break;
-  case 'e':
-    sscanf(buffer.c_str(), "g e %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("e %d %f\n", this_desk, my_desk.getEnergyAvg());
-    }
-    else
-    {
-      send_to_others(i, "ge", 0, 0);
-    }
-    break;
-  case 'v':
-    sscanf(buffer.c_str(), "g v %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("v %d %f\n", this_desk, my_desk.getVisibilityErr());
-    }
-    else
-    {
-      send_to_others(i, "gv", 0, 0);
-    }
-    break;
-  case 'f':
-    sscanf(buffer.c_str(), "g f %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("f %d %f\n", this_desk, my_desk.getFlickerErr());
-    }
-    else
-    {
-      send_to_others(i, "gf", 0, 0);
-    }
-    break;
-  case 'O':
-    sscanf(buffer.c_str(), "g O %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("O %d %f\n", this_desk, node.getLowerBoundOccupied());
-    }
-    else
-    {
-      send_to_others(i, "gO", 0, 0);
-    }
-    break;
-  case 'U':
-    sscanf(buffer.c_str(), "g U %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("U %d %f\n", this_desk, node.getLowerBoundUnoccupied());
-    }
-    else
-    {
-      send_to_others(i, "gU", 0, 0);
-    }
-    break;
-  case 'L':
-    sscanf(buffer.c_str(), "g L %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("L %d %f\n", this_desk, node.getCurrentLowerBound());
-    }
-    else
-    {
-      send_to_others(i, "gL", 0, 0);
-    }
-    break;
-  case 'c':
-    sscanf(buffer.c_str(), "g c %d", &i);
-    if (i == this_desk)
-    {
-      Serial.printf("c %d %f\n", this_desk, node.getCost());
-    }
-    else
-    {
-      send_to_others(i, "g c", 0, 0);
-    }
-    break;
-  case 'b':
-    char x;
-    sscanf(buffer.c_str(), "g b %c %d", &x, &i);
-    if (i == this_desk)
-    {
-      unsigned short head = my_desk.getIdxBuffer();
-      if (x == 'l')
+      break;
+    case 'r':
+      sscanf(buffer.c_str(), "g r %d", &i);
+      if (i == this_desk)
       {
-        Serial.printf("b l %d ", this_desk);
-        // Se o buffer estiver cheio começar a partir dos valores mais antigos para os mais recentes
-        if (my_desk.isBufferFull())
-        {
-          for (i = head; i < buffer_size; i++)
-          {
-            Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i));
-          }
-          for (i = 0; i < head - 1; i++)
-          {
-            Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i));
-          }
-        }
-        // Se o buffer não estiver cheio ir até onde há dados
-        else
-        {
-          for (i = 0; i < head - 1; i++)
-          {
-            Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i));
-          }
-        }
-        Serial.printf("%f\n", my_desk.getLastMinuteBufferL(head - 1));
-      }
-      else if (x == 'd')
-      {
-        Serial.printf("b d %d ", this_desk);
-        // Se o buffer estiver cheio começar a partir dos valores mais antigos para os mais recentes
-        if (my_desk.isBufferFull())
-        {
-          for (i = head; i < buffer_size; i++)
-          {
-            Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i)); // tirar o \n e meter ,
-          }
-          for (i = 0; i < head - 1; i++)
-          {
-            Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i)); // tirar o \n
-          }
-        }
-        // Se o buffer não estiver cheio ir até onde há dados
-        else
-        {
-          for (i = 0; i < head - 1; i++)
-          {
-            Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i)); // tirar o \n
-          }
-        }
-        Serial.printf("%f\n", my_desk.getLastMinuteBufferD(head - 1));
+        Serial.printf("r %d %f\n", i, my_desk.getRef());
       }
       else
       {
-        Serial.println("err");
+        send_to_others(i, "g r", 0, 0);
       }
-    }
-    else
-    {
-      String result;
-      result.concat("bg"); // Add "g b"
-      result.concat(x);    // Add 'd' or 'l'
+      break;
+    case 'l':
+      sscanf(buffer.c_str(), "g l %d", &i);
+      if (i == this_desk)
+      {
+        int read_adc_new;
+        float Lux;
+        read_adc_new = digital_filter(20.0);
+        Lux = adc_to_lux(read_adc_new);
+        Serial.printf("l %d %f\n", this_desk, Lux);
+      }
+      else
+      {
+        send_to_others(i, "g l", 0, 0);
+      }
+      break;
+    case 'o':
+      sscanf(buffer.c_str(), "g o %d", &i);
+      if (i == this_desk)
+      {
+        Serial.printf("o %d %d\n", i, node.getOccupancy());
+      }
+      else
+      {
+        send_to_others(i, "g o", 0, 0);
+      }
+      break;
+    case 'a':
+      sscanf(buffer.c_str(), "g a %d", &i);
+      if (i == this_desk)
+      {
+        Serial.printf("a %d %d\n", i, my_pid.get_antiwindup());
+      }
+      else
+      {
+        send_to_others(i, "g a", 0, 0);
+      }
+      break;
+    case 'k':
+      sscanf(buffer.c_str(), "g k %d", &i);
+      if (i == this_desk)
+      {
+        Serial.printf("k %d %d\n", i, my_pid.get_feedback());
+      }
+      else
+      {
+        send_to_others(i, "g k", 0, 0);
+      }
+      break;
+    case 'x':
+      sscanf(buffer.c_str(), "g x %d", &i);
+      if (i == this_desk)
+      {
+        // float Lux = adc_to_lux(read_adc); // TODO: verificar se podemos usar o valor do getExternalLight()
+        // Lux = max(0, Lux - (volt_to_lux(my_desk.getDutyCycle() * dutyCycle_conv * my_desk.getGain())));
+        Serial.printf("x %d %f\n", this_desk, comm.getExternalLight());
+      }
+      else
+      {
+        send_to_others(i, "g x", 0, 0);
+      }
+      break;
+    case 'p':
+      sscanf(buffer.c_str(), "g p %d", &i);
+      if (i == this_desk)
+      {
+        float power = my_desk.getPmax() * my_desk.getDutyCycle() / 100.0;
+        Serial.printf("p %d %f\n", this_desk, power);
+      }
+      else
+      {
+        send_to_others(i, "g p", 0, 0);
+      }
+      break;
+    case 't':
+      sscanf(buffer.c_str(), "g t %d", &i);
+      if (i == this_desk)
+      {
+        unsigned long final_time = millis();
+        Serial.printf("t %d %ld\n", this_desk, final_time / 1000);
+      }
+      else
+      {
+        send_to_others(i, "g t", 0, 0);
+      }
+      break;
+    case 'e':
+      sscanf(buffer.c_str(), "g e %d", &i);
+      if (i == this_desk)
+      {
+        Serial.printf("e %d %f\n", this_desk, my_desk.getEnergyAvg());
+      }
+      else
+      {
+        send_to_others(i, "ge", 0, 0);
+      }
+      break;
+    case 'v':
+      sscanf(buffer.c_str(), "g v %d", &i);
+      if (i == this_desk)
+      {
+        Serial.printf("v %d %f\n", this_desk, my_desk.getVisibilityErr());
+      }
+      else
+      {
+        send_to_others(i, "gv", 0, 0);
+      }
+      break;
+    case 'f':
+      sscanf(buffer.c_str(), "g f %d", &i);
+      if (i == this_desk)
+      {
+        Serial.printf("f %d %f\n", this_desk, my_desk.getFlickerErr());
+      }
+      else
+      {
+        send_to_others(i, "gf", 0, 0);
+      }
+      break;
+    case 'O':
+      sscanf(buffer.c_str(), "g O %d", &i);
+      if (i == this_desk)
+      {
+        Serial.printf("O %d %f\n", this_desk, node.getLowerBoundOccupied());
+      }
+      else
+      {
+        send_to_others(i, "gO", 0, 0);
+      }
+      break;
+    case 'U':
+      sscanf(buffer.c_str(), "g U %d", &i);
+      if (i == this_desk)
+      {
+        Serial.printf("U %d %f\n", this_desk, node.getLowerBoundUnoccupied());
+      }
+      else
+      {
+        send_to_others(i, "gU", 0, 0);
+      }
+      break;
+    case 'L':
+      sscanf(buffer.c_str(), "g L %d", &i);
+      if (i == this_desk)
+      {
+        Serial.printf("L %d %f\n", this_desk, node.getCurrentLowerBound());
+      }
+      else
+      {
+        send_to_others(i, "gL", 0, 0);
+      }
+      break;
+    case 'c':
+      sscanf(buffer.c_str(), "g c %d", &i);
+      if (i == this_desk)
+      {
+        Serial.printf("c %d %f\n", this_desk, node.getCost());
+      }
+      else
+      {
+        send_to_others(i, "g c", 0, 0);
+      }
+      break;
+    case 'b':
+      char x;
+      sscanf(buffer.c_str(), "g b %c %d", &x, &i);
+      if (i == this_desk)
+      {
+        unsigned short head = my_desk.getIdxBuffer();
+        if (x == 'l')
+        {
+          Serial.printf("b l %d ", this_desk);
+          // Se o buffer estiver cheio começar a partir dos valores mais antigos para os mais recentes
+          if (my_desk.isBufferFull())
+          {
+            for (i = head; i < buffer_size; i++)
+            {
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i));
+            }
+            for (i = 0; i < head - 1; i++)
+            {
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i));
+            }
+          }
+          // Se o buffer não estiver cheio ir até onde há dados
+          else
+          {
+            for (i = 0; i < head - 1; i++)
+            {
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i));
+            }
+          }
+          Serial.printf("%f\n", my_desk.getLastMinuteBufferL(head - 1));
+        }
+        else if (x == 'd')
+        {
+          Serial.printf("b d %d ", this_desk);
+          // Se o buffer estiver cheio começar a partir dos valores mais antigos para os mais recentes
+          if (my_desk.isBufferFull())
+          {
+            for (i = head; i < buffer_size; i++)
+            {
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i)); // tirar o \n e meter ,
+            }
+            for (i = 0; i < head - 1; i++)
+            {
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i)); // tirar o \n
+            }
+          }
+          // Se o buffer não estiver cheio ir até onde há dados
+          else
+          {
+            for (i = 0; i < head - 1; i++)
+            {
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i)); // tirar o \n
+            }
+          }
+          Serial.printf("%f\n", my_desk.getLastMinuteBufferD(head - 1));
+        }
+        else
+        {
+          Serial.println("err");
+        }
+      }
+      else
+      {
+        String result;
+        result.concat("bg"); // Add "g b"
+        result.concat(x);    // Add 'd' or 'l'
 
-      send_to_others(i, result, 0, 2);
+        send_to_others(i, result, 0, 2);
+      }
+      break;
+    default:
+      Serial.println("err");
+      break;
     }
     break;
   default:
     Serial.println("err");
     break;
   }
-  break;
-default:
-  Serial.println("err");
-  break;
-}
 
-if (buffer.startsWith("a d"))
-{
-
-  Serial.printf("Desk Number: %d\n", my_desk.getDeskNumber());
-  Serial.printf("Conectadas a mim:");
-  for (const int &elem : comm.getDesksConnected())
+  if (buffer.startsWith("a d"))
   {
-    Serial.printf(" %d,", elem);
-  }
-  Serial.printf("\nTime to connect -> %d\n", comm.getTimeToConnect());
 
-  if (comm.getIsCalibrated())
-  {
-    for (int i = 1; i <= comm.getNumDesks(); i++)
+    Serial.printf("Desk Number: %d\n", my_desk.getDeskNumber());
+    Serial.printf("Conectadas a mim:");
+    for (const int &elem : comm.getDesksConnected())
     {
-      Serial.printf("Desk %d -> %f\n", i, comm.getCouplingGain(i - 1));
+      Serial.printf(" %d,", elem);
     }
-    Serial.printf("external light: %f\n", comm.getExternalLight());
+    Serial.printf("\nTime to connect -> %d\n", comm.getTimeToConnect());
+
+    if (comm.getIsCalibrated())
+    {
+      for (int i = 1; i <= comm.getNumDesks(); i++)
+      {
+        Serial.printf("Desk %d -> %f\n", i, comm.getCouplingGain(i - 1));
+      }
+      Serial.printf("external light: %f\n", comm.getExternalLight());
+    }
   }
-}
+  return;
 }
 
 void real_time_stream_of_data(unsigned long time, float lux)
