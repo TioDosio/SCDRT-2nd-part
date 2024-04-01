@@ -542,7 +542,7 @@ void read_command(const String &command, float read_adc)
   }
   else if (command.startsWith("r"))
   {
-    // RESET and recalibrate the system
+    // TODO: RESET and recalibrate the system
   }
   else if (command.startsWith("D"))
   {
@@ -602,7 +602,7 @@ void send_to_others(const int desk, const String &commands, const float value, i
     canMsgTx.data[0] = commands.charAt(0);
     Serial.printf("Value: %f\n", value);
     Serial.printf("Size: %d -- %d\n", sizeof(unsigned char), sizeof(int));
-    memcpy(&canMsgTx.data[1], &value, sizeof(float));
+    memcpy(&canMsgTx.data[1], &value, sizeof(float)); // TODO: ao ler o valor do buffer, ler como float e passar para int nos casos necessários
   }
   else // to send get messages <char> <char> <char> only for "g b l" and "g b d"
   {
