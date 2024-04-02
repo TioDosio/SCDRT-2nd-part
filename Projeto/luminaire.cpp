@@ -1,11 +1,11 @@
 #include "luminaire.h"
 
-luminaire::luminaire(float _m, float _offset_R_Lux, float _Pmax, int _desk_number)
+luminaire::luminaire(float _m, float _offset_R_Lux, float _Pmax, double ref_value, int _desk_number)
     : m{_m}, offset_R_Lux{_offset_R_Lux}, Pmax{_Pmax}, G{0}, desk_number{_desk_number},
       lux_flag{false}, duty_flag{false}, ignore_reference{false}, buffer_full{false},
       idx_buffer{0}, Energy_avg{0.0}, counter_avg{0}, hub{false}
 {
-  setRef(0.0);
+  setRef(ref_value);
 }
 
 void luminaire::store_buffer(float lux)

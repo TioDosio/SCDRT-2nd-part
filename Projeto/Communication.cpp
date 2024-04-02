@@ -1,4 +1,5 @@
 #include "Communication.h"
+#include "extrafunctions.h"
 #include <cstring>
 #include <Arduino.h>
 
@@ -92,7 +93,7 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
       Serial.printf("Luminance: %f\n", l);
 
       // TODO UPDATE DUTY CYCLE
-      my_desk->setRef(l);
+      ref_change(l);
       node->setConsensusRunning(false); // Stop the consensus when the max iterations are reached
       consensus_msg_switch(0, 'E');
     }
@@ -237,6 +238,7 @@ void communication::cross_gains()
   calibration_msg(0, 'R');
   light_on = adc_to_lux(digital_filter(50.0));
   coupling_gains[my_desk->getDeskNumber() - 1] = light_on - light_off;
+  my_desk->setGain(light_on - light_off);
 }
 
 void communication::msg_received_connection(can_frame canMsgRx)

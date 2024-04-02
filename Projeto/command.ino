@@ -60,6 +60,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (val >= 0)
         {
+          Serial.printf("r %d %f\n", i, val);
           ref_change(val);
           if (fromCanBus) // if from can bus and is my desk, process message and send to others
           {
@@ -106,6 +107,7 @@ void read_command(const String &buffer, bool fromCanBus)
     {
       if (flag == 1 || flag == 0 || flag == 2)
       {
+        my_desk.setIgnoreReference(false);
         node.setOccupancy(flag);
         runConsensus();
         send_to_all('q');
@@ -821,7 +823,7 @@ void read_command(const String &buffer, bool fromCanBus)
     break;
   }
 
-  if (buffer.startsWith("a d"))
+  if (buffer.startsWith("F"))
   {
     Serial.printf("Desk Number: %d\n", my_desk.getDeskNumber());
     Serial.printf("Conectadas a mim:");

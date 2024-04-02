@@ -13,9 +13,11 @@ const int DAC_RANGE = 4096; // range of the DAC
 const float VCC = 3.3;
 const float adc_conv = 4095.0 / VCC;
 const float dutyCycle_conv = 4095.0 / 100.0;
-pid my_pid{0.01, 0.15, 1.5}; // h, k, Tt
+pid my_pid{0.01, 0.3, 0.1}; // h, k, Tt
 
-luminaire my_desk{-0.89, log10(225000) - (-0.89), 0.0158}; // m, b(offset), Pmax
+Node node;
+
+luminaire my_desk{-0.9, log10(225000) - (-0.9), 0.0158, node.getCurrentLowerBound()}; // m, b(offset), Pmax, InitialRef
 
 bool debbuging = false;
 
@@ -40,9 +42,6 @@ bool my_repeating_timer_callback(struct repeating_timer *t)
   }
   return true;
 }
-
-// Consensus
-Node node;
 
 bool flag_temp = false; // TODO
 

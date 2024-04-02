@@ -13,14 +13,14 @@ class luminaire
   unsigned long counter_avg;
 
 public:
-  explicit luminaire(float _m, float _offset_R_Lux, float _Pmax, int _desk_number = 1);
+  explicit luminaire(float _m, float _offset_R_Lux, float _Pmax, double ref_value, int _desk_number = 1);
   ~luminaire(){};
   void store_buffer(float lux);
   void Compute_avg(float h, float lux, float reference);
   float lux_to_volt(float lux);
 
   // Setters
-  void setRef(float value)
+  void setRef(double value)
   {
     ref = value;
     ref_volt = lux_to_volt(ref);
