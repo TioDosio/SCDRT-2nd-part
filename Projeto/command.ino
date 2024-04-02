@@ -452,18 +452,25 @@ void read_command(const String &buffer, bool fromCanBus)
       }
       else if (my_desk.getHub()) // if the desk is not mine
       {
-        send_to_others(i, "g d", 0, 0);
+        send_to_others(i, "gd", 0, 0);
       }
       break;
     case 'r':
       sscanf(buffer.c_str(), "g r %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("r %d %f\n", i, my_desk.getRef());
+        if (fromCanBus)
+        {
+          send_to_others(i, "r", my_desk.getRef(), 1);
+        }
+        else
+        {
+          Serial.printf("r %d %f\n", i, my_desk.getRef());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
-        send_to_others(i, "g r", 0, 0);
+        send_to_others(i, "gr", 0, 0);
       }
       break;
     case 'l':
@@ -474,57 +481,93 @@ void read_command(const String &buffer, bool fromCanBus)
         float Lux;
         read_adc_new = digital_filter(20.0);
         Lux = adc_to_lux(read_adc_new);
-        Serial.printf("l %d %f\n", this_desk, Lux);
+        if (fromCanBus)
+        {
+          send_to_others(i, "l", Lux, 1);
+        }
+        else
+        {
+          Serial.printf("l %d %f\n", this_desk, Lux);
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
-        send_to_others(i, "g l", 0, 0);
+        send_to_others(i, "gl", 0, 0);
       }
       break;
     case 'o':
       sscanf(buffer.c_str(), "g o %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("o %d %d\n", i, node.getOccupancy());
+        if (fromCanBus)
+        {
+          send_to_others(i, "o", node.getOccupancy(), 1);
+        }
+        else
+        {
+          Serial.printf("o %d %d\n", i, node.getOccupancy());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
-        send_to_others(i, "g o", 0, 0);
+        send_to_others(i, "go", 0, 0);
       }
       break;
     case 'a':
       sscanf(buffer.c_str(), "g a %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("a %d %d\n", i, my_pid.get_antiwindup());
+        if (fromCanBus)
+        {
+          send_to_others(i, "a", my_pid.get_antiwindup(), 1);
+        }
+        else
+        {
+          Serial.printf("a %d %d\n", i, my_pid.get_antiwindup());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
-        send_to_others(i, "g a", 0, 0);
+        send_to_others(i, "ga", 0, 0);
       }
       break;
     case 'k':
       sscanf(buffer.c_str(), "g k %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("k %d %d\n", i, my_pid.get_feedback());
+        if (fromCanBus)
+        {
+          send_to_others(i, "k", my_pid.get_feedback(), 1);
+        }
+        else
+        {
+          Serial.printf("k %d %d\n", i, my_pid.get_feedback());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
-        send_to_others(i, "g k", 0, 0);
+        send_to_others(i, "gk", 0, 0);
       }
       break;
     case 'x':
       sscanf(buffer.c_str(), "g x %d", &i);
       if (i == this_desk)
       {
-        // float Lux = adc_to_lux(read_adc); // TODO: verificar se podemos usar o valor do getExternalLight()
-        // Lux = max(0, Lux - (volt_to_lux(my_desk.getDutyCycle() * dutyCycle_conv * my_desk.getGain())));
-        Serial.printf("x %d %f\n", this_desk, comm.getExternalLight());
+        if (fromCanBus)
+        {
+          send_to_others(i, "x", comm.getExternalLight(), 1); // TODO: ver este também
+        }
+        else
+        {
+          // TODO: verificar se podemos usar o valor do getExternalLight()
+          // float Lux = adc_to_lux(read_adc);
+          // Lux = max(0, Lux - (volt_to_lux(my_desk.getDutyCycle() * dutyCycle_conv * my_desk.getGain())));
+          Serial.printf("x %d %f\n", this_desk, comm.getExternalLight());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
-        send_to_others(i, "g x", 0, 0);
+        send_to_others(i, "gx", 0, 0);
       }
       break;
     case 'p':
@@ -532,11 +575,18 @@ void read_command(const String &buffer, bool fromCanBus)
       if (i == this_desk)
       {
         float power = my_desk.getPmax() * my_desk.getDutyCycle() / 100.0;
-        Serial.printf("p %d %f\n", this_desk, power);
+        if (fromCanBus)
+        {
+          send_to_others(i, "p", power, 1);
+        }
+        else
+        {
+          Serial.printf("p %d %f\n", this_desk, power);
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
-        send_to_others(i, "g p", 0, 0);
+        send_to_others(i, "gp", 0, 0);
       }
       break;
     case 't':
@@ -544,20 +594,34 @@ void read_command(const String &buffer, bool fromCanBus)
       if (i == this_desk)
       {
         unsigned long final_time = millis();
-        Serial.printf("t %d %ld\n", this_desk, final_time / 1000);
+        if (fromCanBus)
+        {
+          send_to_others(i, "t", final_time / 1000, 1); // TODO: está a mandar um unsigned int no sitio de um float
+        }
+        else
+        {
+          Serial.printf("t %d %ld\n", this_desk, final_time / 1000);
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
-        send_to_others(i, "g t", 0, 0);
+        send_to_others(i, "gt", 0, 0);
       }
       break;
     case 'e':
       sscanf(buffer.c_str(), "g e %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("e %d %f\n", this_desk, my_desk.getEnergyAvg());
+        if (fromCanBus)
+        {
+          send_to_others(i, "e", my_desk.getEnergyAvg(), 1);
+        }
+        else
+        {
+          Serial.printf("e %d %f\n", this_desk, my_desk.getEnergyAvg());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
         send_to_others(i, "ge", 0, 0);
       }
@@ -566,9 +630,16 @@ void read_command(const String &buffer, bool fromCanBus)
       sscanf(buffer.c_str(), "g v %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("v %d %f\n", this_desk, my_desk.getVisibilityErr());
+        if (fromCanBus)
+        {
+          send_to_others(i, "v", my_desk.getVisibilityErr(), 1);
+        }
+        else
+        {
+          Serial.printf("v %d %f\n", this_desk, my_desk.getVisibilityErr());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
         send_to_others(i, "gv", 0, 0);
       }
@@ -577,9 +648,16 @@ void read_command(const String &buffer, bool fromCanBus)
       sscanf(buffer.c_str(), "g f %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("f %d %f\n", this_desk, my_desk.getFlickerErr());
+        if (fromCanBus)
+        {
+          send_to_others(i, "f", my_desk.getFlickerErr(), 1);
+        }
+        else
+        {
+          Serial.printf("f %d %f\n", this_desk, my_desk.getFlickerErr());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
         send_to_others(i, "gf", 0, 0);
       }
@@ -588,9 +666,16 @@ void read_command(const String &buffer, bool fromCanBus)
       sscanf(buffer.c_str(), "g O %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("O %d %f\n", this_desk, node.getLowerBoundOccupied());
+        if (fromCanBus)
+        {
+          send_to_others(i, "O", node.getLowerBoundOccupied(), 1);
+        }
+        else
+        {
+          Serial.printf("O %d %f\n", this_desk, node.getLowerBoundOccupied());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
         send_to_others(i, "gO", 0, 0);
       }
@@ -599,9 +684,16 @@ void read_command(const String &buffer, bool fromCanBus)
       sscanf(buffer.c_str(), "g U %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("U %d %f\n", this_desk, node.getLowerBoundUnoccupied());
+        if (fromCanBus)
+        {
+          send_to_others(i, "U", node.getLowerBoundUnoccupied(), 1);
+        }
+        else
+        {
+          Serial.printf("U %d %f\n", this_desk, node.getLowerBoundUnoccupied());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
         send_to_others(i, "gU", 0, 0);
       }
@@ -610,9 +702,16 @@ void read_command(const String &buffer, bool fromCanBus)
       sscanf(buffer.c_str(), "g L %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("L %d %f\n", this_desk, node.getCurrentLowerBound());
+        if (fromCanBus)
+        {
+          send_to_others(i, "L", node.getCurrentLowerBound(), 1);
+        }
+        else
+        {
+          Serial.printf("L %d %f\n", this_desk, node.getCurrentLowerBound());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
         send_to_others(i, "gL", 0, 0);
       }
@@ -621,14 +720,21 @@ void read_command(const String &buffer, bool fromCanBus)
       sscanf(buffer.c_str(), "g c %d", &i);
       if (i == this_desk)
       {
-        Serial.printf("c %d %f\n", this_desk, node.getCost());
+        if (fromCanBus)
+        {
+          send_to_others(i, "c", node.getCost(), 1);
+        }
+        else
+        {
+          Serial.printf("c %d %f\n", this_desk, node.getCost());
+        }
       }
-      else
+      else if (my_desk.getHub())
       {
-        send_to_others(i, "g c", 0, 0);
+        send_to_others(i, "gc", 0, 0);
       }
       break;
-    case 'b':
+    case 'b': // TODO: implementar last minute buffer stream
       char x;
       sscanf(buffer.c_str(), "g b %c %d", &x, &i);
       if (i == this_desk)
@@ -684,9 +790,13 @@ void read_command(const String &buffer, bool fromCanBus)
           }
           Serial.printf("%f\n", my_desk.getLastMinuteBufferD(head - 1));
         }
-        else
+        else if (my_desk.getHub())
         {
           Serial.println("err");
+        }
+        else
+        {
+          send_ack_err(0);
         }
       }
       else
@@ -699,12 +809,26 @@ void read_command(const String &buffer, bool fromCanBus)
       }
       break;
     default:
-      Serial.println("err");
+      if (my_desk.getHub())
+      {
+        Serial.println("err");
+      }
+      else
+      {
+        send_ack_err(0);
+      }
       break;
     }
     break;
   default:
-    Serial.println("err");
+    if (my_desk.getHub())
+    {
+      Serial.println("err");
+    }
+    else
+    {
+      send_ack_err(0);
+    }
     break;
   }
 
