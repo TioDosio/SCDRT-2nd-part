@@ -105,6 +105,15 @@ void loop()
         read_command(command, 0);
       }
       real_time_stream_of_data(time / 1000, lux);
+      /*if (!getConsensusRunning())
+      {
+        array[counter] if counter == 2
+        {
+          // send_array()
+          counter = -1;
+        }
+        counter++;
+      }*/
     }
   }
 }

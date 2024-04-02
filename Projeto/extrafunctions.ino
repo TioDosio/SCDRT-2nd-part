@@ -84,3 +84,20 @@ void send_ack_err(int cmd) // 0-err    1-ack
     Serial.printf("Error sending message \n");
   }
 }
+
+/*void send_buffer()
+{
+  struct can_frame canMsgRx;
+  canMsgRx.can_id = my_desk.getDeskNumber();
+  canMsgRx.can_dlc = 8;
+
+  msg = static_cast<int>(my_desk.getDutyCycle() * 100);
+  canMsgTx.data[1] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
+  canMsgTx.data[2] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
+
+  comm.sendMsg(&canMsgTx);
+  if (comm.getError() != MCP2515::ERROR_OK)
+  {
+    Serial.printf("Error sending message \n");
+  }
+}*/

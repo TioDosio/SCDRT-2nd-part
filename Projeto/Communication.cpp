@@ -150,7 +150,7 @@ void communication::connection_msg(char type)
 }
 
 /************CALIBRATION FUNCTIONS********************/
-// Message -> "C B/E/F/R/Q {desk_number}" (Calibration Beginning/External/Finished/Read/Start)
+// Message -> "C B/E/F/R/S {desk_number}" (Calibration Beginning/External/Finished/Read/Start)
 void communication::calibration_msg(int dest_desk, char type)
 {
   struct can_frame canMsgTx;
@@ -168,7 +168,7 @@ void communication::calibration_msg(int dest_desk, char type)
   {
     // MESSAGE NOT SENT
   }
-  if (type != 'F' && type != 'Q')
+  if (type != 'F' && type != 'S')
   {
     missing_ack = desks_connected;
     time_ack = millis();

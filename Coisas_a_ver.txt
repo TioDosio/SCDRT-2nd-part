@@ -18,3 +18,21 @@
 - todos os Acks e Errs que o HUB recebe dá Serial.print -> Done, não testado 
 
 - erros de envio de mensagem a serem mandados pelo can-bus para serem apresentados no Server -> Ver com alfa porque podemos ja ter
+
+
+int counter;
+loop{
+    if time fire // 10ms
+    {
+        if (counsensus_off)
+        {
+        array[counter]
+        if counter == 2
+        {
+            send_array()
+            counter = -1;
+        }
+        counter++;
+        }
+    }
+}
