@@ -14,7 +14,7 @@ inline void communicationLoop()
             {
                 can_frame canMsgRx;
                 comm.ReadMsg(&canMsgRx);
-                if (canMsgRx.data[0] == 'S' || canMsgRx.data[2] == comm.int_to_char_msg(my_desk.getDeskNumber()) || canMsgRx.data[2] == comm.int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
+                if (canMsgRx.data[0] == 'Q' || canMsgRx.data[2] == comm.int_to_char_msg(my_desk.getDeskNumber()) || canMsgRx.data[2] == comm.int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
                 {
                     comm.add_msg_queue(canMsgRx); // Put all the messages in the queue
                 }
@@ -76,10 +76,10 @@ inline void communicationLoop()
                     case 'C':
                         comm.msg_received_calibration(canMsgRx);
                         break;
-                    case 'S': // TODO: escolher outro
+                    case 'Q': // TODO: escolher outro
                         comm.msg_received_consensus(canMsgRx, &node);
                         break;
-                    case 's': // TODO: escolher outro
+                    case 'q': // TODO: escolher outro
                         runConsensus();
                         break;
                     case 'T':
@@ -120,6 +120,38 @@ inline void communicationLoop()
                         {
                             Serial.println("ack");
                         }
+                    }
+                    break;
+                    case 'l':
+                    {
+                        float lux = (static_cast<int>(canMsgRx.data[1]) + (static_cast<int>(canMsgRx.data[2]) << 8)) / 100.0;
+                        unsigned int time;
+                        memcpy(&time, &canMsgRx.data[3], sizeof(unsigned int));
+                        String command;
+                        command.concat("s ");
+                        command.concat(canMsgRx.data[0]);
+                        command.concat(" ");
+                        command.concat(lux);
+                        command.concat(" ");
+                        command.concat(time);
+
+                        read_command(command, 1);
+                    }
+                    break;
+                    case 'd':
+                    {
+                        float duty_cycle = (static_cast<int>(canMsgRx.data[1]) + (static_cast<int>(canMsgRx.data[2]) << 8)) / 100.0;
+                        unsigned int time;
+                        memcpy(&time, &canMsgRx.data[3], sizeof(unsigned int));
+                        String command;
+                        command.concat("s ");
+                        command.concat(canMsgRx.data[0]);
+                        command.concat(" ");
+                        command.concat(duty_cycle);
+                        command.concat(" ");
+                        command.concat(time);
+
+                        read_command(command, 1);
                     }
                     break;
                     default:

@@ -91,7 +91,7 @@ void loop()
       float time;
       time = millis();
       float read_adc = digital_filter(20.0);
-      if (my_desk.isON() && (!my_desk.isIgnoreReference()))
+      if (!my_desk.isIgnoreReference())
       {
         consensusLoop();
         controllerLoop(read_adc);
@@ -142,7 +142,7 @@ inline void controllerLoop(float read_adc)
 
 void runConsensus()
 {
-  if (comm.getNumDesks() == 3 && my_desk.isON() && !node.getConsensusRunning())
+  if (comm.getNumDesks() == 3 && !node.getConsensusRunning())
   {
     // NODE INITIALIZATION
     node.initializeNode(comm.getCouplingGains(), my_desk.getDeskNumber() - 1, comm.getExternalLight());

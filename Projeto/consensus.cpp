@@ -216,11 +216,8 @@ bool Node::checkConvergence()
 {
     double tol = 1e-9;
     double norm_squared = 0;
-    if (k[0] * getDavIndex(0) + k[1] * getDavIndex(1) + k[2] * getDavIndex(2) + o < L)
-    {
-        return false;
-    }
-    else if (getConsensusIterations() > 2)
+    
+    if (getConsensusIterations() > 2)
     {
         for (int i = 0; i < 3; i++)
         {
@@ -231,6 +228,10 @@ bool Node::checkConvergence()
         {
             return true;
         }
+    }
+    else if (k[0] * getDavIndex(0) + k[1] * getDavIndex(1) + k[2] * getDavIndex(2) + o < L)
+    {
+        return false;
     }
     return false;
 }
@@ -333,6 +334,11 @@ void Node::setOccupancy(int value)
     {
         occupancy = 0;
         L = getLowerBoundUnoccupied();
+    }
+    else if (value == 2)
+    {
+        occupancy = 2;
+        L = 0;
     }
 }
 

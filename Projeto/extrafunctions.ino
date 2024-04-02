@@ -46,7 +46,6 @@ void ref_change(float value)
   my_desk.setRef(value);
   my_desk.setIgnoreReference(false);
   my_pid.set_b(my_desk.getRefVolt() / my_desk.getRef(), my_desk.getGain());
-  my_desk.setON(true);
   my_pid.set_Ti(Tau(my_desk.getRef()));
 }
 

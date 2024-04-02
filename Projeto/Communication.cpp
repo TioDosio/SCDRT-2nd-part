@@ -25,7 +25,7 @@ void communication::acknowledge_loop(Node *node)
 
     if (canMsgRx.data[0] != 'A')
     {
-      if (canMsgRx.data[0] == 'S' || canMsgRx.data[2] == int_to_char_msg(my_desk->getDeskNumber()) || canMsgRx.data[2] == int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
+      if (canMsgRx.data[0] == 'Q' || canMsgRx.data[2] == int_to_char_msg(my_desk->getDeskNumber()) || canMsgRx.data[2] == int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
       {
         command_queue.push(canMsgRx);
       }
@@ -81,7 +81,7 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
     }
   }
   break;
-  case 'S':
+  case 'Q':
   {
     int next_desk = canMsgRx.can_id + 1 > getNumDesks() ? 1 : canMsgRx.can_id + 1;
     node->setConsensusIterations(node->getConsensusIterations() + 1);
@@ -150,7 +150,7 @@ void communication::connection_msg(char type)
 }
 
 /************CALIBRATION FUNCTIONS********************/
-// Message -> "C B/E/F/R/S {desk_number}" (Calibration Beginning/External/Finished/Read/Start)
+// Message -> "C B/E/F/R/Q {desk_number}" (Calibration Beginning/External/Finished/Read/Start)
 void communication::calibration_msg(int dest_desk, char type)
 {
   struct can_frame canMsgTx;
@@ -168,7 +168,7 @@ void communication::calibration_msg(int dest_desk, char type)
   {
     // MESSAGE NOT SENT
   }
-  if (type != 'F' && type != 'S')
+  if (type != 'F' && type != 'Q')
   {
     missing_ack = desks_connected;
     time_ack = millis();
@@ -339,7 +339,7 @@ void communication::consensus_msg_duty(double d[3])
   struct can_frame canMsgTx;
   canMsgTx.can_id = my_desk->getDeskNumber();
   canMsgTx.can_dlc = 8;
-  canMsgTx.data[0] = 'S';
+  canMsgTx.data[0] = 'Q';
   int msg;
   for (int i = 1, j = 0; i < 7; i += 2, j++)
   {
