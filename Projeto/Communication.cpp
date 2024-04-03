@@ -29,6 +29,12 @@ void communication::acknowledge_loop(Node *node)
       if (canMsgRx.data[0] == 'Q' || canMsgRx.data[2] == int_to_char_msg(my_desk->getDeskNumber()) || canMsgRx.data[2] == int_to_char_msg(0)) // Check if the message is for this desk (0 is for all the desks)
       {
         command_queue.push(canMsgRx);
+        if (canMsgRx.data[0] == 'C' && canMsgRx.data[1] == 'B')
+        {
+          Serial.printf("MISSING ACK empty?: %d\n", isMissingAckEmpty()); // TODO APAGAR
+          missing_ack.clear();
+          Serial.printf("MISSING ACK empty?: %d\n", isMissingAckEmpty()); // TODO APAGAR
+        }
       }
     }
     else
@@ -190,6 +196,16 @@ void communication::msg_received_calibration(can_frame canMsgRx)
       free(coupling_gains);
     }
     coupling_gains = (double *)malloc((getNumDesks()) * sizeof(double)); // array of desks
+    int queue_size = command_queue.size();
+    for (int i = 0; i < queue_size; i++)
+    {
+      canMsgRx = get_msg_queue();
+      if (canMsgRx.data[0] != 'C') // Exclude old calibration messages to avoid conflicts
+      {
+        command_queue.push(canMsgRx);
+      }
+    }
+    is_calibrated = false;
     ack_msg(canMsgRx);
     ChangeLEDValue(0);
   }
@@ -282,7 +298,7 @@ void communication::new_calibration()
   coupling_gains = (double *)malloc((desks_connected.size() + 1) * sizeof(double)); // array of desks
   if (desks_connected.empty())
   {
-    Gain();
+    // Gain(); //TODO
     is_calibrated = true;
   }
   else

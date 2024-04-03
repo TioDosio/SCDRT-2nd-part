@@ -20,7 +20,7 @@ inline void communicationLoop()
                 }
             }
 
-            while (!comm.isQueueEmpty())
+            while (!comm.isQueueEmpty() && comm.isMissingAckEmpty())
             {
                 can_frame canMsgRx;
                 canMsgRx = comm.get_msg_queue();
@@ -32,7 +32,6 @@ inline void communicationLoop()
                     command.concat(canMsgRx.data[1]);
                     command.concat(" ");
                     command.concat(canMsgRx.can_id);
-
                     read_command(command, 1);
                 }
                 else if (canMsgRx.can_dlc == 3) // char char char (g b d or g b l)
@@ -74,24 +73,34 @@ inline void communicationLoop()
                         comm.msg_received_connection(canMsgRx);
                         break;
                     case 'C':
-                        comm.msg_received_calibration(canMsgRx);
-                        break;
+                    {
+                        if (comm.isConnected())
+                        {
+                            comm.msg_received_calibration(canMsgRx);
+                        }
+                    }
+                    break;
                     case 'Q': // TODO: escolher outro
-                        comm.msg_received_consensus(canMsgRx, &node);
-                        break;
-                    case 'q': // TODO: escolher outro
+                    {
+                        if (comm.getIsCalibrated())
+                        {
+                            comm.msg_received_consensus(canMsgRx, &node);
+                        }
+                    }
+                    break;
+                    case 'q': // TODO: escolher outro / ACho que precisa do getIsCalibrated
                         runConsensus();
                         break;
                     case 'T':
                     {
-                        if (node.getConsensusReady())
+                        if (node.getConsensusRunning())
                         {
-                            comm.consensus_msg_duty(node.getD());
-                            node.setConsensusReady(false);
-                        }
-                        else
-                        {
-                            if (node.getConsensusRunning())
+                            if (node.getConsensusReady()) // Check if all the calculations are done and ready to send
+                            {
+                                comm.consensus_msg_duty(node.getD());
+                                node.setConsensusReady(false);
+                            }
+                            else // If not, add the message to the queue again
                             {
                                 comm.add_msg_queue(canMsgRx);
                             }
@@ -179,8 +188,7 @@ void wakeUp()
                 my_desk.setHub();
             }
             comm.connection_msg('A');
-            flag_temp = true; // TODO CONECTAR PARA QUALQUER NUM DE DESKS
-                              // TODO Confirmar mensagens de e N antes de correr o new_calibration
+            newCalibration = true;
         }
         else
         {
@@ -209,13 +217,5 @@ void resendAck() // Resend the last message received
         Serial.println();
         comm.resend_last_msg();
         comm.time_ack_set(millis());
-    }
-    if (flag_temp && (comm.getNumDesks()) == 3) // Initialize the calibration when all the desks are connected
-    {
-        if (my_desk.getDeskNumber() == 3)
-        {
-            comm.new_calibration();
-        }
-        flag_temp = false;
     }
 }

@@ -20,6 +20,7 @@ Node node;
 luminaire my_desk{-0.9, log10(225000) - (-0.9), 0.0158, node.getCurrentLowerBound()}; // m, b(offset), Pmax, InitialRef
 
 bool debbuging = false;
+bool newCalibration = false;
 
 communication comm{&my_desk};
 
@@ -42,8 +43,6 @@ bool my_repeating_timer_callback(struct repeating_timer *t)
   }
   return true;
 }
-
-bool flag_temp = false; // TODO
 
 enum consensusStage : uint8_t
 {
@@ -81,8 +80,8 @@ void setup1()
 }
 
 void loop()
-{ // the loop function runs cyclically
-  if (comm.getIsCalibrated())
+{                             // the loop function runs cyclically
+  if (comm.getIsCalibrated()) // Only run the loop if the luminaire is calibrated
   {
     if (timer_fired)
     {
@@ -122,6 +121,11 @@ void loop1()
   wakeUp();
   communicationLoop();
   resendAck();
+  if (newCalibration)
+  {
+    comm.new_calibration();
+    newCalibration = false;
+  }
 }
 
 inline void controllerLoop(float read_adc)

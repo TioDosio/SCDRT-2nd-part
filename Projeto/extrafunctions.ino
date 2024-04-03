@@ -85,6 +85,11 @@ void send_ack_err(int cmd) // 0-err    1-ack
   }
 }
 
+void print_serial(char* message)
+{
+  Serial.println(message);
+}
+
 /*void send_buffer()
 {
   struct can_frame canMsgRx;
