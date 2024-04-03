@@ -5,7 +5,7 @@
 #include "Communication.h"
 #include "extrafunctions.h"
 
-#define TIME_ACK 2500
+#define TIME_ACK 3500
 
 // luminaire
 const int LED_PIN = 15;     // led pin
@@ -20,6 +20,9 @@ Node node;
 luminaire my_desk{-0.9, log10(225000) - (-0.9), 0.0158, node.getCurrentLowerBound()}; // m, b(offset), Pmax, InitialRef
 
 bool debbuging = false;
+int counter = 0;
+float array_lux[3];
+float array_dc[3];
 
 communication comm{&my_desk};
 
@@ -92,27 +95,31 @@ void loop()
       float read_adc = digital_filter(20.0);
       if (!my_desk.isIgnoreReference())
       {
-        consensusLoop();
         controllerLoop(read_adc);
       }
       float lux = adc_to_lux(read_adc);
-      my_desk.Compute_avg(my_pid.get_h(), lux, my_desk.getRef());
-      my_desk.store_buffer(lux);
+      my_desk.Compute_avg(my_pid.get_h(), lux, my_desk.getRef(), my_desk.getDeskNumber());
       if (Serial.available() > 0)
       {
         String command = Serial.readStringUntil('\n');
         read_command(command, 0);
       }
-      real_time_stream_of_data(time / 1000, lux);
-      /*if (!getConsensusRunning())
+
+      if (!my_desk.getHub())
       {
-        array[counter] if counter == 2
+        array_lux[counter] = lux;
+        array_dc[counter] = my_desk.getDutyCycle();
+        if (counter == 2)
         {
-          // send_array()
+          // send_arrays_buff(array_lux, 0);
+          // send_arrays_buff(array_dc, 1);
           counter = -1;
         }
         counter++;
-      }*/
+      }
+
+      my_desk.store_buffer_l(my_desk.getDeskNumber(), lux);
+      real_time_stream_of_data(time / 1000, lux);
     }
   }
 }
@@ -122,6 +129,7 @@ void loop1()
   wakeUp();
   communicationLoop();
   resendAck();
+  start_calibration();
 }
 
 inline void controllerLoop(float read_adc)
@@ -148,16 +156,39 @@ inline void controllerLoop(float read_adc)
   my_desk.setDutyCycle(pwm / dutyCycle_conv);
 }
 
-void runConsensus()
+void mainConsensus(double newLuminance[3])
 {
-  if (comm.getNumDesks() == 3 && !node.getConsensusRunning())
+  int numberOfDesks = comm.getNumDesks();
+
+  if (numberOfDesks > 1 && !node.getConsensusRunning())
   {
-    // NODE INITIALIZATION
-    node.initializeNode(comm.getCouplingGains(), my_desk.getDeskNumber() - 1, comm.getExternalLight());
+    int myDesk = my_desk.getDeskNumber();
+    // nodes
+    Node nodes[numberOfDesks];
+
+    for (int i = 0; i < numberOfDesks; i++)
+    {
+      if (i == myDesk)
+      {
+        nodes[i] = node;
+      }
+      else
+      {
+        int index = std::distance(comm.getDesksConnected().begin(), comm.getDesksConnected().find(i));
+        OtherLuminaires Lums = node.getLums(index);
+        nodes[i].initializeNode(Lums.getK(), i, Lums.getC(), Lums.getL(), Lums.getO());
+      }
+    }
+
     // RUN CONSENSUS ALGORITHM
-    node.setConsensusRunning(true);
-    node.setConsensusIterations(0);
-    consensusStage = consensusStage::CONSENSUSITERATON;
+    double *d_av = runConsensus(nodes, numberOfDesks);
+
+    for (int i = 0; i < numberOfDesks; i++)
+    {
+      newLuminance[i] = nodes[i].getKIndex(0) * nodes[i].getDavIndex(0) + nodes[i].getKIndex(1) * nodes[i].getDavIndex(1) + nodes[i].getKIndex(2) * nodes[i].getDavIndex(2) + nodes[i].getO();
+    }
+    ref_change(newLuminance[myDesk]);
+    node = nodes[myDesk];
   }
   else
   {
@@ -165,47 +196,48 @@ void runConsensus()
   }
 }
 
-void consensusLoop()
+double *runConsensus(Node *nodes, int numberOfDesks)
 {
-  if (node.getConsensusRunning())
+  // iterations
+  for (int i = 1; i < nodes[0].getConsensusMaxIterations(); i++)
   {
-    switch (consensusStage)
+    // COMPUTATION OF THE PRIMAL SOLUTIONS
+    for (int j = 0; j < numberOfDesks; j++)
     {
-    case consensusStage::CONSENSUSITERATON:
-    {
-      // COMPUTATION OF THE PRIMAL SOLUTIONS
-      node.consensusIterate();
-      node.setConsensusReady(true);
-
-      consensusStage = consensusStage::CONSENSUSWAIT;
-      node.resetOtherD(); // Reset the other d values
-      break;
+      nodes[j].consensusIterate();
     }
-    case consensusStage::CONSENSUSWAIT:
+
+    // COMPUTATION OF THE AVERAGE
+    for (int j = 0; j < numberOfDesks; j++)
     {
-      if (node.checkOtherDIsFull() && !node.getConsensusReady())
+      nodes[j].setDavIndex(j, (nodes[nodes[j].getIndex()].getDIndex(j) + nodes[nodes[j].getIndex()].getDIndex(j) + nodes[nodes[j].getIndex()].getDIndex(j)) / numberOfDesks);
+    }
+
+    // COMPUTATION OF THE LAGRANGIAN UPDATES
+    for (int j = 0; j < numberOfDesks; j++)
+    {
+      nodes[j].setLambdaIndex(j, nodes[j].getLambdaIndex(j) + nodes[j].getRho() * (nodes[j].getDIndex(j) - nodes[j].getDavIndex(j)));
+      nodes[j].setLambdaIndex(j, nodes[j].getLambdaIndex(j) + nodes[j].getRho() * (nodes[j].getDIndex(j) - nodes[j].getDavIndex(j)));
+      nodes[j].setLambdaIndex(j, nodes[j].getLambdaIndex(j) + nodes[j].getRho() * (nodes[j].getDIndex(j) - nodes[j].getDavIndex(j)));
+    }
+
+    // Check if a consensus has been reached, if so, break the loop
+    int count = 0;
+    for (int j = 0; j < numberOfDesks; j++)
+    {
+      if (nodes[j].checkConvergence())
       {
-        // COMPUTATION OF THE AVERAGE
-        double temp;
-        double *dutycycle1 = node.getOtherD(0);
-        double *dutycycle2 = node.getOtherD(1);
-        for (int j = 0; j < 3; j++)
-        {
-          temp = (node.getDIndex(j) + dutycycle1[j] + dutycycle2[j]) / 3;
-          node.setDavIndex(j, temp);
-        }
-        // COMPUTATION OF THE LAGRANGIAN UPDATES
-        for (int j = 0; j < 3; j++)
-        {
-          node.setLambdaIndex(j, node.getLambdaIndex(j) + node.getRho() * (node.getDIndex(j) - node.getDavIndex(j)));
-        }
-
-        consensusStage = consensusStage::CONSENSUSITERATON;
-        // Update the last d values
-        node.copyArray(node.getLastD(), node.getD());
+        count++;
       }
-      break;
+      // Update the last d values
+      nodes[j].copyArray(nodes[j].getLastD(), nodes[j].getD());
+      nodes[j].copyArray(nodes[j].getLastD(), nodes[j].getD());
+      nodes[j].copyArray(nodes[j].getLastD(), nodes[j].getD());
     }
+    if (count == numberOfDesks)
+    {
+      break;
     }
   }
+  return nodes[0].getDav();
 }

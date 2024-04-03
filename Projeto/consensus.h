@@ -4,6 +4,28 @@
 #include <Arduino.h>
 #include <cmath>
 
+class OtherLuminaires
+{
+private:
+    double k[3];
+    double o;
+    double c;
+    double L;
+
+public:
+    explicit OtherLuminaires();
+    ~OtherLuminaires(){};
+    double *getK();
+    double getKIndex(int index);
+    void setKIndex(int index, double value);
+    double getO();
+    void setO(double value);
+    double getC();
+    void setC(double value);
+    double getL();
+    void setL(double value);
+};
+
 class Node
 {
 private:
@@ -28,12 +50,13 @@ private:
     bool consensusReady = false;
     int consensusIteration = 0;
     int maxiter = 100;
+    OtherLuminaires Lums[2];
     double evaluateCost(double d[]);
     bool checkFeasibility(double d[]);
     void updateBest(double d_best[], double d[], double &cost_best, double cost);
 
 public:
-    void initializeNode(double *K, int index, double o);
+    void initializeNode(double *K, int index, double cost, double L, double o);
     void consensusIterate();
     bool checkConvergence();
     double getKIndex(int index);
@@ -48,6 +71,7 @@ public:
     void setLambdaIndex(int index, double value);
     double getCost();
     void setCost(double value);
+    int getIndex();
     double getRho();
     double *getLastD();
     void copyArray(double dest[], double src[]);
@@ -70,6 +94,9 @@ public:
     double *getOtherD(int index);
     void setConsensusReady(bool value);
     bool getConsensusReady();
+    void setLums(OtherLuminaires lums, int index);
+    OtherLuminaires getLums(int index);
+    bool receivedAllLums();
 };
 
 #endif

@@ -34,10 +34,8 @@ public:
     void calibration_msg(int dest_desk, char type);
     void msg_received_connection(can_frame canMsgRx);
     void msg_received_calibration(can_frame canMsgRx);
-    void msg_received_consensus(can_frame canMsgRx, Node *node);
     void msg_received_ack(can_frame canMsgRx, Node *node);
-    void consensus_msg_switch(int next_desk, char type);
-    void consensus_msg_duty(double d[3]);
+    void consensus_msg_lux(double lux[3]);
     void confirm_msg(can_frame ack_msg);
     int char_msg_to_int(char msg);
     char int_to_char_msg(int msg);
@@ -48,6 +46,7 @@ public:
     void Gain();
     void new_calibration();
     void delay_manual(unsigned long time);
+    void send_consensus_data(char part, Node *node, int destination);
 
     // Getters
 
@@ -201,6 +200,8 @@ public:
     {
         time_write = time;
     }
+
+    void start_consensus();
 };
 
 #endif // COMMUNICATION_H

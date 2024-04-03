@@ -67,6 +67,7 @@ float Tau(float value)
 void send_ack_err(int cmd) // 0-err    1-ack
 {
   struct can_frame canMsgTx;
+  canMsgTx.can_id = 1;
   if (cmd == 0)
   {
     canMsgTx.can_dlc = 1;
@@ -85,19 +86,30 @@ void send_ack_err(int cmd) // 0-err    1-ack
   }
 }
 
-/*void send_buffer()
+void send_arrays_buff(float array[3], int flag)
 {
-  struct can_frame canMsgRx;
-  canMsgRx.can_id = my_desk.getDeskNumber();
-  canMsgRx.can_dlc = 8;
-
-  msg = static_cast<int>(my_desk.getDutyCycle() * 100);
-  canMsgTx.data[1] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
-  canMsgTx.data[2] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
-
+  struct can_frame canMsgTx;
+  canMsgTx.can_id = 1;
+  canMsgTx.can_dlc = 8;
+  if (flag == 0)
+  {
+    canMsgTx.data[0] = 'L';
+    canMsgTx.data[1] = comm.int_to_char_msg(my_desk.getDeskNumber());
+  }
+  else
+  {
+    canMsgTx.data[0] = 'D';
+  }
+  int msg;
+  for (int i = 2, j = 0; i < 8; i += 2, j++)
+  {
+    msg = static_cast<int>(array[j] * 100);
+    canMsgTx.data[i] = static_cast<unsigned char>(msg & 255);    // Same as msg0 % 256, but more efficient
+    canMsgTx.data[i + 1] = static_cast<unsigned char>(msg >> 8); // Same as msg0 / 256, but more efficient
+  }
   comm.sendMsg(&canMsgTx);
   if (comm.getError() != MCP2515::ERROR_OK)
   {
     Serial.printf("Error sending message \n");
   }
-}*/
+}

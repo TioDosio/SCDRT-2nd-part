@@ -6,17 +6,19 @@
 class luminaire
 {
   float m, offset_R_Lux, Pmax, DutyCycle, G, ref_unoccupied, ref_occupied, ref, ref_volt;
-  float last_minute_buffer_d[buffer_size], last_minute_buffer_l[buffer_size];
+  float last_minute_buffer_l[3][buffer_size], last_minute_buffer_d[3][buffer_size];
   bool lux_flag, duty_flag, ignore_reference, buffer_full, hub;
-  int desk_number, idx_buffer;
+  int desk_number, idx_buffer_l[3], idx_buffer_d[3];
+  bool buffer_full_l[3], buffer_full_d[3];
   double Energy_avg, visibility_err, flicker_err;
   unsigned long counter_avg;
 
 public:
   explicit luminaire(float _m, float _offset_R_Lux, float _Pmax, double ref_value, int _desk_number = 1);
   ~luminaire(){};
-  void store_buffer(float lux);
-  void Compute_avg(float h, float lux, float reference);
+  void store_buffer_l(int flag, float lux);
+  void store_buffer_d(int flag, float duty_cycle);
+  void Compute_avg(float h, float lux, float reference, int desk);
   float lux_to_volt(float lux);
 
   // Setters
@@ -104,9 +106,13 @@ public:
     return m;
   }
 
-  int getIdxBuffer() const
+  int getIdxBuffer_l(int wich_desk) const
   {
-    return idx_buffer;
+    return idx_buffer_l[wich_desk];
+  }
+  int getIdxBuffer_d(int wich_desk) const
+  {
+    return idx_buffer_d[wich_desk];
   }
 
   float getGain() const
@@ -114,14 +120,14 @@ public:
     return G;
   }
 
-  float getLastMinuteBufferD(unsigned short index) const
+  float getLastMinuteBufferD(int desk, int index) const
   {
-    return last_minute_buffer_d[index];
+    return last_minute_buffer_d[desk][index];
   }
 
-  float getLastMinuteBufferL(unsigned short index) const
+  float getLastMinuteBufferL(int desk, int index) const
   {
-    return last_minute_buffer_l[index];
+    return last_minute_buffer_l[desk][index];
   }
 
   bool isIgnoreReference() const

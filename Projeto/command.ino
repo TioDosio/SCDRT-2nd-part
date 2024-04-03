@@ -105,13 +105,11 @@ void read_command(const String &buffer, bool fromCanBus)
     Serial.printf("%s\n", buffer.c_str());
     if (i == this_desk)
     {
-      if (flag == 1 || flag == 0 || flag == 2)
+      if (flag > 0 || flag < 3)
       {
         my_desk.setIgnoreReference(false);
         node.setOccupancy(flag);
-        runConsensus();
-        send_to_all('q');
-        start_consensus();
+        comm.start_consensus();
         if (fromCanBus)
         {
           send_ack_err(1);
@@ -139,7 +137,7 @@ void read_command(const String &buffer, bool fromCanBus)
     }
     break;
   case 'a':
-    sscanf(buffer.c_str(), "a %d %f", &i, &flag);
+    sscanf(buffer.c_str(), "a %d %d", &i, &flag);
 
     if (i == this_desk)
     {
@@ -322,9 +320,7 @@ void read_command(const String &buffer, bool fromCanBus)
         node.setLowerBoundOccupied(val);
         if (node.getOccupancy() == 1)
         {
-          runConsensus();
-          send_to_all('q');
-          start_consensus();
+          comm.start_consensus();
         }
         if (fromCanBus)
         {
@@ -361,9 +357,7 @@ void read_command(const String &buffer, bool fromCanBus)
         node.setLowerBoundUnoccupied(val);
         if (node.getOccupancy() == 0)
         {
-          runConsensus();
-          send_to_all('q');
-          start_consensus();
+          comm.start_consensus();
         }
         if (fromCanBus)
         {
@@ -396,9 +390,7 @@ void read_command(const String &buffer, bool fromCanBus)
     if (i == this_desk)
     {
       node.setCost(val);
-      runConsensus();
-      send_to_all('q');
-      start_consensus();
+      comm.start_consensus();
       if (fromCanBus)
       {
         send_ack_err(1);
@@ -434,7 +426,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus) // if from can bus and is my desk, process message and send to others
         {
-          send_to_others(i, "d", my_desk.getDutyCycle(), 1);
+          response_msg(my_desk.getDeskNumber(), "d", my_desk.getDutyCycle());
         }
         else // if from serial and is my desk, print
         {
@@ -452,7 +444,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "r", my_desk.getRef(), 1);
+          response_msg(my_desk.getDeskNumber(), "r", my_desk.getRef());
         }
         else
         {
@@ -474,7 +466,7 @@ void read_command(const String &buffer, bool fromCanBus)
         Lux = adc_to_lux(read_adc_new);
         if (fromCanBus)
         {
-          send_to_others(i, "l", Lux, 1);
+          response_msg(my_desk.getDeskNumber(), "l", Lux);
         }
         else
         {
@@ -492,7 +484,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "o", node.getOccupancy(), 1);
+          response_msg(my_desk.getDeskNumber(), "o", node.getOccupancy());
         }
         else
         {
@@ -510,7 +502,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "a", my_pid.get_antiwindup(), 1);
+          response_msg(my_desk.getDeskNumber(), "a", my_pid.get_antiwindup());
         }
         else
         {
@@ -528,7 +520,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "k", my_pid.get_feedback(), 1);
+          response_msg(my_desk.getDeskNumber(), "k", my_pid.get_feedback());
         }
         else
         {
@@ -546,7 +538,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "x", comm.getExternalLight(), 1); // TODO: ver este também
+          response_msg(my_desk.getDeskNumber(), "x", comm.getExternalLight());
         }
         else
         {
@@ -568,7 +560,7 @@ void read_command(const String &buffer, bool fromCanBus)
         float power = my_desk.getPmax() * my_desk.getDutyCycle() / 100.0;
         if (fromCanBus)
         {
-          send_to_others(i, "p", power, 1);
+          response_msg(my_desk.getDeskNumber(), "p", power);
         }
         else
         {
@@ -587,7 +579,7 @@ void read_command(const String &buffer, bool fromCanBus)
         unsigned long final_time = millis();
         if (fromCanBus)
         {
-          send_to_others(i, "t", final_time / 1000, 1); // TODO: está a mandar um unsigned int no sitio de um float
+          response_msg(my_desk.getDeskNumber(), "t", final_time / 1000);
         }
         else
         {
@@ -605,7 +597,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "e", my_desk.getEnergyAvg(), 1);
+          response_msg(my_desk.getDeskNumber(), "e", my_desk.getEnergyAvg());
         }
         else
         {
@@ -623,7 +615,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "v", my_desk.getVisibilityErr(), 1);
+          response_msg(my_desk.getDeskNumber(), "v", my_desk.getVisibilityErr());
         }
         else
         {
@@ -641,7 +633,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "f", my_desk.getFlickerErr(), 1);
+          response_msg(my_desk.getDeskNumber(), "f", my_desk.getFlickerErr());
         }
         else
         {
@@ -659,7 +651,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "O", node.getLowerBoundOccupied(), 1);
+          response_msg(my_desk.getDeskNumber(), "O", node.getLowerBoundOccupied());
         }
         else
         {
@@ -677,7 +669,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "U", node.getLowerBoundUnoccupied(), 1);
+          response_msg(my_desk.getDeskNumber(), "U", node.getLowerBoundUnoccupied());
         }
         else
         {
@@ -695,7 +687,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "L", node.getCurrentLowerBound(), 1);
+          response_msg(my_desk.getDeskNumber(), "L", node.getCurrentLowerBound());
         }
         else
         {
@@ -713,7 +705,7 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (fromCanBus)
         {
-          send_to_others(i, "c", node.getCost(), 1);
+          response_msg(my_desk.getDeskNumber(), "c", node.getCost());
         }
         else
         {
@@ -730,56 +722,57 @@ void read_command(const String &buffer, bool fromCanBus)
       sscanf(buffer.c_str(), "g b %c %d", &x, &i);
       if (i == this_desk)
       {
-        unsigned short head = my_desk.getIdxBuffer();
         if (x == 'l')
         {
+          unsigned short head = my_desk.getIdxBuffer_l(i);
           Serial.printf("b l %d ", this_desk);
           // Se o buffer estiver cheio começar a partir dos valores mais antigos para os mais recentes
           if (my_desk.isBufferFull())
           {
-            for (i = head; i < buffer_size; i++)
+            for (int j = head; j < buffer_size; j++)
             {
-              Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i));
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i, j));
             }
-            for (i = 0; i < head - 1; i++)
+            for (int j = 0; j < head - 1; j++)
             {
-              Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i));
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i, j));
             }
           }
           // Se o buffer não estiver cheio ir até onde há dados
           else
           {
-            for (i = 0; i < head - 1; i++)
+            for (int j = 0; j < head - 1; j++)
             {
-              Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i));
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferL(i, j));
             }
           }
-          Serial.printf("%f\n", my_desk.getLastMinuteBufferL(head - 1));
+          Serial.printf("%f\n", my_desk.getLastMinuteBufferL(i, head - 1));
         }
         else if (x == 'd')
         {
+          unsigned short head = my_desk.getIdxBuffer_d(i);
           Serial.printf("b d %d ", this_desk);
           // Se o buffer estiver cheio começar a partir dos valores mais antigos para os mais recentes
           if (my_desk.isBufferFull())
           {
-            for (i = head; i < buffer_size; i++)
+            for (int j = head; j < buffer_size; j++)
             {
-              Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i)); // tirar o \n e meter ,
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i, j)); // tirar o \n e meter ,
             }
-            for (i = 0; i < head - 1; i++)
+            for (int j = 0; j < head - 1; j++)
             {
-              Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i)); // tirar o \n
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i, j)); // tirar o \n
             }
           }
           // Se o buffer não estiver cheio ir até onde há dados
           else
           {
-            for (i = 0; i < head - 1; i++)
+            for (int j = 0; j < head - 1; j++)
             {
-              Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i)); // tirar o \n
+              Serial.printf("%f, ", my_desk.getLastMinuteBufferD(i, j)); // tirar o \n
             }
           }
-          Serial.printf("%f\n", my_desk.getLastMinuteBufferD(head - 1));
+          Serial.printf("%f\n", my_desk.getLastMinuteBufferD(i, head - 1));
         }
         else if (my_desk.getHub())
         {
@@ -863,11 +856,11 @@ void real_time_stream_of_data(unsigned long time, float lux)
   {
     if (my_desk.isLuxFlag())
     {
-      // TODO: send stream to hub
+      send_stream(0, time, lux);
     }
     if (my_desk.isDutyFlag())
     {
-      // TODO: send stream to hub
+      send_stream(1, time, 0);
     }
   }
 
@@ -881,25 +874,27 @@ void send_stream(int type, unsigned long time, float lux) // type 0 -> lux, type
 {
   struct can_frame canMsgTx;
   int msg;
-  canMsgTx.can_id = my_desk.getDeskNumber();
+  canMsgTx.can_id = 1;
   canMsgTx.can_dlc = 8;
   if (type == 0)
   {
     canMsgTx.data[0] = 'l';
+    canMsgTx.data[1] = comm.int_to_char_msg(my_desk.getDeskNumber());
     msg = static_cast<int>(lux * 100);
-    canMsgTx.data[1] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
-    canMsgTx.data[2] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
+    canMsgTx.data[2] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
+    canMsgTx.data[3] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
   }
   else
   {
     canMsgTx.data[0] = 'd';
+    canMsgTx.data[1] = comm.int_to_char_msg(my_desk.getDeskNumber());
     msg = static_cast<int>(my_desk.getDutyCycle() * 100);
-    canMsgTx.data[1] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
-    canMsgTx.data[2] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
+    canMsgTx.data[2] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
+    canMsgTx.data[3] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
   }
   // TIME
   unsigned int time_aux = static_cast<unsigned int>(time);
-  memcpy(&canMsgTx.data[3], &time_aux, sizeof(unsigned int));
+  memcpy(&canMsgTx.data[4], &time_aux, sizeof(unsigned int));
 
   comm.sendMsg(&canMsgTx);
   if (comm.getError() != MCP2515::ERROR_OK)
@@ -940,10 +935,8 @@ void send_to_others(const int desk, const String &commands, const float value, i
   {
     canMsgTx.can_dlc = 5;
     canMsgTx.data[0] = commands.charAt(0);
-    Serial.printf("Value: %f\n", value);
-    Serial.printf("Size: %d -- %d\n", sizeof(unsigned char), sizeof(int));
     memcpy(&canMsgTx.data[1], &value, sizeof(float));
-    memcpy(&canMsgTx.data[1], &value, sizeof(float)); // TODO: ao ler o valor do buffer, ler como float e passar para int nos casos necessários
+    // TODO: ao ler o valor do buffer, ler como float e passar para int nos casos necessários
   }
   else // to send get messages <char> <char> <char> only for "g b l" and "g b d"
   {
@@ -961,16 +954,19 @@ void send_to_others(const int desk, const String &commands, const float value, i
   }
 }
 
-void start_consensus()
+void response_msg(const int desk, const String &commands, const float value)
 {
-  struct can_frame canMsgRx;
-  canMsgRx.can_id = my_desk.getDeskNumber();
-  canMsgRx.can_dlc = 8;
-  canMsgRx.data[0] = 'T';
-  for (int i = 1; i < 7; i++)
+  struct can_frame canMsgTx; // r 1 value
+  canMsgTx.can_id = 1;
+  canMsgTx.can_dlc = 8;
+
+  canMsgTx.data[0] = commands.charAt(0);
+  canMsgTx.data[1] = comm.int_to_char_msg(desk);
+  memcpy(&canMsgTx.data[1], &value, sizeof(float));
+
+  comm.sendMsg(&canMsgTx);
+  if (comm.getError() != MCP2515::ERROR_OK)
   {
-    canMsgRx.data[i + 1] = ' ';
+    Serial.printf("Error sending message \n");
   }
-  comm.add_msg_queue(canMsgRx);
-  data_available = true;
 }

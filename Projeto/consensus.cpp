@@ -1,23 +1,24 @@
 #include <iostream> //TOMAS PRECISAS DISTO TODO
 #include "consensus.h"
 
-void Node::initializeNode(double *K, int index, double o)
+void Node::initializeNode(double *K, int index, double cost, double L, double o)
 {
     this->index = index;
     rho = 0.6;
     for (int i = 0; i < 3; i++)
     {
         d[i] = 0;
-        lastD[i] = 0;
         d_av[i] = 0;
+        lastD[i] = 0;
         lambda[i] = 0;
         k[i] = K[i];
-        c[i] = (i == index) ? 1 : 0; // MUDAR O 1 PARA O CUSTO
+        c[i] = (i == index) ? cost : 0;
     }
     n = k[0] * k[0] + k[1] * k[1] + k[2] * k[2];
     m = n - k[index] * k[index];
     this->o = o;
-    L = getCurrentLowerBound();
+    this->L = L;
+    this->cost = cost;
 }
 
 double Node::evaluateCost(double d[])
@@ -101,8 +102,7 @@ void Node::consensusIterate()
         double cost_temp = evaluateCost(d_temp);
         if (cost_temp < cost_best)
         {
-            copyArray(d, d_temp); // if unconstrained is the best, no other will be
-            cost = cost_temp;
+            updateBest(d_best, d_temp, cost_best, cost_temp);
             return;
         }
     }
@@ -209,14 +209,13 @@ void Node::consensusIterate()
 
     // Copy the best d and cost back to the original variables
     copyArray(d, d_best);
-    cost = cost_best;
 }
 
 bool Node::checkConvergence()
 {
     double tol = 1e-9;
     double norm_squared = 0;
-    
+
     if (getConsensusIterations() > 2)
     {
         for (int i = 0; i < 3; i++)
@@ -289,6 +288,11 @@ void Node::setCost(double value)
     cost = value;
 }
 
+int Node::getIndex()
+{
+    return index;
+}
+
 double Node::getRho()
 {
     return rho;
@@ -340,6 +344,11 @@ void Node::setOccupancy(int value)
         occupancy = 2;
         L = 0;
     }
+}
+
+double Node::getO()
+{
+    return o;
 }
 
 int Node::getOccupancy()
@@ -430,7 +439,74 @@ double Node::getKIndex(int index)
     return k[index];
 }
 
-double Node::getO()
+void Node::setLums(OtherLuminaires lums, int index)
+{
+    Lums[index] = lums;
+}
+
+OtherLuminaires Node::getLums(int index)
+{
+    return Lums[index];
+}
+
+OtherLuminaires::OtherLuminaires()
+{
+    for (int j = 0; j < 3; j++)
+    {
+        k[j] = -1;
+    }
+    o = -1;
+    c = -1;
+    L = -1;
+}
+
+double *OtherLuminaires::getK()
+{
+    return k;
+}
+
+double OtherLuminaires::getKIndex(int index)
+{
+    return k[index];
+}
+
+void OtherLuminaires::setKIndex(int index, double value)
+{
+    k[index] = value;
+}
+double OtherLuminaires::getO()
 {
     return o;
+}
+void OtherLuminaires::setO(double value)
+{
+    o = value;
+}
+double OtherLuminaires::getC()
+{
+    return c;
+}
+void OtherLuminaires::setC(double value)
+{
+    c = value;
+}
+double OtherLuminaires::getL()
+{
+    return L;
+}
+void OtherLuminaires::setL(double value)
+{
+    L = value;
+}
+
+bool Node::receivedAllLums()
+{
+    for (int i = 0; i < 2; i++)
+    {
+        if (Lums[i].getO() == -1 || Lums[i].getKIndex(0) == -1)
+        {
+            return false;
+        }
+    }
+    return true;
 }
