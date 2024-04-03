@@ -99,6 +99,7 @@ void send_arrays_buff(float array[3], int flag)
   else
   {
     canMsgTx.data[0] = 'D';
+    canMsgTx.data[1] = comm.int_to_char_msg(my_desk.getDeskNumber());
   }
   int msg;
   for (int i = 2, j = 0; i < 8; i += 2, j++)

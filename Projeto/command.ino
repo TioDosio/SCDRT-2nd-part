@@ -1,6 +1,11 @@
 #include "command.h"
 #include "Communication.h"
 
+/*
+ * Function to process the commands received from the serial port
+ * @param buffer: the command received from the serial port or received via CanBus
+ * @param fromCanBus: say if is received via CanBus or SerialPort
+ */
 void read_command(const String &buffer, bool fromCanBus)
 {
   int i, flag;
@@ -409,7 +414,7 @@ void read_command(const String &buffer, bool fromCanBus)
     debbuging = !debbuging;
     if (fromCanBus)
     {
-      send_ack_err(1);
+      send_ack_err(1); // sends ACK
     }
     else
     {
@@ -838,6 +843,11 @@ void read_command(const String &buffer, bool fromCanBus)
   return;
 }
 
+/*
+ * Function to stream the data asked in real time
+ * @param time: time since the system started
+ * @param lux: value of luminusity on certain desk choosen
+ */
 void real_time_stream_of_data(unsigned long time, float lux)
 {
   int this_desk = my_desk.getDeskNumber();
@@ -870,6 +880,12 @@ void real_time_stream_of_data(unsigned long time, float lux)
   }
 }
 
+/*
+ * Function to send the stream via CanBus
+ * @param type: if its stream of lux or duty cycle
+ * @param time: time since the system started
+ * @param lux: value of luminusity on certain desk choosen
+ */
 void send_stream(int type, unsigned long time, float lux) // type 0 -> lux, type 1 -> duty
 {
   struct can_frame canMsgTx;
@@ -903,6 +919,10 @@ void send_stream(int type, unsigned long time, float lux) // type 0 -> lux, type
   }
 }
 
+/*
+ * Function to send informations to all nodes in the system
+ * @param type: chat that represents the information to be sent
+ */
 void send_to_all(char type) //
 {
   struct can_frame canMsgTx;
@@ -921,7 +941,13 @@ void send_to_all(char type) //
     Serial.printf("Error sending message \n");
   }
 }
-
+/*
+ * Function to send informations to all nodes if we are the hub and the command asks for other desk
+ * @param desk: destination desk that is referenced on the command
+ * @param commands: string with the command to foward
+ * @param value: values to set the parameters choosen
+ * @param type: type of information to foward: set, get or get last minute buffer
+ */
 void send_to_others(const int desk, const String &commands, const float value, int type)
 {
   struct can_frame canMsgTx;
@@ -953,16 +979,21 @@ void send_to_others(const int desk, const String &commands, const float value, i
     Serial.printf("Error sending message \n");
   }
 }
-
+/*
+ * Function to send responses to the gets
+ * @param desk: number of the destination desk to send the response
+ * @param commands: chars of the response
+ * @param value: value to send in the response
+ */
 void response_msg(const int desk, const String &commands, const float value)
 {
   struct can_frame canMsgTx; // r 1 value
   canMsgTx.can_id = 1;
-  canMsgTx.can_dlc = 8;
+  canMsgTx.can_dlc = 6;
 
   canMsgTx.data[0] = commands.charAt(0);
   canMsgTx.data[1] = comm.int_to_char_msg(desk);
-  memcpy(&canMsgTx.data[1], &value, sizeof(float));
+  memcpy(&canMsgTx.data[2], &value, sizeof(float));
 
   comm.sendMsg(&canMsgTx);
   if (comm.getError() != MCP2515::ERROR_OK)

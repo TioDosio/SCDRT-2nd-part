@@ -55,7 +55,9 @@ enum consensusStage : uint8_t
 };
 
 consensusStage consensusStage;
-
+/*
+ * Setup of the first core
+ */
 void setup()
 { // the setup function runs once
   Serial.begin(115200);
@@ -65,6 +67,9 @@ void setup()
   add_repeating_timer_ms(-10, my_repeating_timer_callback, NULL, &timer);
 }
 
+/*
+ * Setup of the second core
+ */
 void setup1()
 {
   comm.resetCan0();
@@ -83,6 +88,9 @@ void setup1()
   comm.setConnectTime(millis());
 }
 
+/*
+ * 1st core loop
+ */
 void loop()
 { // the loop function runs cyclically
   if (comm.getIsCalibrated())
@@ -124,6 +132,9 @@ void loop()
   }
 }
 
+/*
+ * 2nd core loop
+ */
 void loop1()
 {
   wakeUp();
@@ -156,6 +167,10 @@ inline void controllerLoop(float read_adc)
   my_desk.setDutyCycle(pwm / dutyCycle_conv);
 }
 
+/*
+ * Function that receives the iluminances and run the algorithm
+ * @param: array with the three new iluminances
+ */
 void mainConsensus(double newLuminance[3])
 {
   int numberOfDesks = comm.getNumDesks();
@@ -196,6 +211,11 @@ void mainConsensus(double newLuminance[3])
   }
 }
 
+/*
+ * Function that runs the consensus algorithm
+ * @param nodes: array of nodes
+ * @param numberOfDesks: number of desks on the system
+ */
 double *runConsensus(Node *nodes, int numberOfDesks)
 {
   // iterations

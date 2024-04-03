@@ -1,5 +1,6 @@
-#include <iostream> //TOMAS PRECISAS DISTO TODO
+#include <iostream> //TOMAS PRECISAS DISTO TODO?
 #include "consensus.h"
+#include "Arduino.h"
 
 void Node::initializeNode(double *K, int index, double cost, double L, double o)
 {
@@ -503,6 +504,8 @@ bool Node::receivedAllLums()
 {
     for (int i = 0; i < 2; i++)
     {
+        Serial.println(Lums[i].getO());
+        Serial.println(Lums[i].getKIndex(0));
         if (Lums[i].getO() == -1 || Lums[i].getKIndex(0) == -1)
         {
             return false;

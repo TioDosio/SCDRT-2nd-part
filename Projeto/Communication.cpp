@@ -7,6 +7,9 @@ communication::communication(luminaire *_my_desk) : my_desk{_my_desk}, is_connec
 {
 }
 
+/*
+ * Function to finds desks on the system
+ */
 int communication::find_desk()
 {
   int i = 1;
@@ -17,13 +20,16 @@ int communication::find_desk()
   return i;
 }
 
+/*
+ * Function to check acks and put the messages on the queue
+ * @param node - Node object
+ */
 void communication::acknowledge_loop(Node *node)
 {
   while (can0.checkReceive() && !isMissingAckEmpty())
   {
     can_frame canMsgRx;
     can0.readMessage(&canMsgRx);
-
     if (canMsgRx.data[0] != 'A')
     {
       if (canMsgRx.can_id == my_desk->getDeskNumber() || canMsgRx.can_id == 0) // Check if the message is for this desk (0 is for all the desks)
@@ -33,19 +39,24 @@ void communication::acknowledge_loop(Node *node)
     }
     else
     {
+      Serial.printf("Ack received from %d -> %c %c %c %c\n", canMsgRx.can_id, canMsgRx.data[1], canMsgRx.data[2], canMsgRx.data[3], canMsgRx.data[4]);
       confirm_msg(canMsgRx);
       if (isMissingAckEmpty())
       {
+        Serial.printf("All nodes acked\n");
         msg_received_ack(last_msg_sent, node);
       }
     }
   }
 }
 
-// Trigger of some actions after receiving the ack
+/*
+ * Function to check the acks and trigger some actions
+ * @param canMsgRx - can_frame object
+ * @param node - Node object
+ */
 void communication::msg_received_ack(can_frame canMsgRx, Node *node)
 {
-  Serial.printf("Message acknowledged response %c %c\n", canMsgRx.data[0], canMsgRx.data[1]);
   switch (canMsgRx.data[0])
   {
   case 'C':
@@ -75,6 +86,7 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
         is_calibrated = true;
         calibration_msg(0, 'F');
         ChangeLEDValue(0);
+        node->initializeNode(getCouplingGains(), my_desk->getDeskNumber(), 1, 5, getExternalLight());
       }
     }
     break;
@@ -85,8 +97,15 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
   break;
   case '1':
   {
-    Serial.printf("ISto é ack para mandar o 2 e não sei o que meter, por isso temos %d e %d \n", canMsgRx.can_id, char_msg_to_int(canMsgRx.data[1]));
+    Serial.printf("ACK response '1'\n");
     send_consensus_data('2', node, canMsgRx.can_id);
+  }
+
+  case '2':
+  {
+    int id = *(std::next(desks_connected.begin()));
+    Serial.printf("ESte é o do 2 %d\n", id);
+    send_consensus_data('1', node, id);
   }
   break;
   default:
@@ -96,6 +115,10 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
 
 /************General Messages********************/
 
+/*
+ * Function to send acks
+ * @param orig_msg - can_frame object
+ */
 void communication::ack_msg(can_frame orig_msg)
 {
   struct can_frame canMsgTx;
@@ -110,13 +133,16 @@ void communication::ack_msg(can_frame orig_msg)
 
   if (err != MCP2515::ERROR_OK)
   {
-    // Serial.printf("Error sending message: %s\n", err);
+    Serial.printf("Error sending message: %s\n", err);
   }
 }
 
 /************CONNECTION FUNCTIONS********************/
 
-// Message -> "W A/N/R {desk_number}" (Wake Ack/New/Received)
+/*
+ * Function to send connection messages Message -> "W A/N/R {desk_number}" (Wake Ack/New/Received)
+ * @param type - char
+ */
 void communication::connection_msg(char type)
 {
   struct can_frame canMsgTx;
@@ -132,12 +158,17 @@ void communication::connection_msg(char type)
   err = can0.sendMessage(&canMsgTx);
   if (err != MCP2515::ERROR_OK)
   {
-    // TODO MESSAGE NOT SENT MENSAGENS DE ERRO TODAS MAL
+    Serial.printf("Error sending message: %s\n", err);
   }
 }
 
 /************CALIBRATION FUNCTIONS********************/
-// Message -> "C B/E/F/R/S {desk_number}" (Calibration Beginning/External/Finished/Read/Start)
+
+/*
+ * Function to send calibration messages; Message -> "C B/E/F/R/S {desk_number}" (Calibration Beginning/External/Finished/Read/Start)
+ * @param dest_desk - int
+ * @param type - char
+ */
 void communication::calibration_msg(int dest_desk, char type)
 {
   struct can_frame canMsgTx;
@@ -153,7 +184,7 @@ void communication::calibration_msg(int dest_desk, char type)
   err = can0.sendMessage(&canMsgTx);
   if (err != MCP2515::ERROR_OK)
   {
-    // MESSAGE NOT SENT
+    Serial.printf("Error sending message: %s\n", err);
   }
   if (type != 'F' && type != 'S')
   {
@@ -164,7 +195,11 @@ void communication::calibration_msg(int dest_desk, char type)
   }
 }
 
-void communication::msg_received_calibration(can_frame canMsgRx)
+/*
+ * Function to receive calibration messages
+ * @param canMsgRx - can_frame object
+ */
+void communication::msg_received_calibration(can_frame canMsgRx, Node *node)
 {
   switch (canMsgRx.data[1])
   {
@@ -190,6 +225,7 @@ void communication::msg_received_calibration(can_frame canMsgRx)
   {
     is_calibrated = true;
     Serial.printf("Calibration Finished through message\n");
+    node->initializeNode(getCouplingGains(), my_desk->getDeskNumber(), 1, 5, getExternalLight());
   }
   break;
   case 'R':
@@ -217,6 +253,9 @@ void communication::msg_received_calibration(can_frame canMsgRx)
   }
 }
 
+/*
+ * Function to lights on the LED and measure the light to calculate the gain and send it to the other desks
+ */
 void communication::cross_gains()
 {
   ChangeLEDValue(4095);
@@ -227,6 +266,9 @@ void communication::cross_gains()
   my_desk->setGain(light_on - light_off);
 }
 
+/*
+ * Function to receive consensus messages and know the connected desks
+ */
 void communication::msg_received_connection(can_frame canMsgRx)
 {
 
@@ -263,6 +305,9 @@ void communication::msg_received_connection(can_frame canMsgRx)
   }
 }
 
+/*
+ * Function to start a new calibration
+ */
 void communication::new_calibration()
 {
   coupling_gains = (double *)malloc((desks_connected.size() + 1) * sizeof(double)); // array of desks
@@ -279,6 +324,9 @@ void communication::new_calibration()
   }
 }
 
+/*
+ * Function to calculate the gain
+ */
 void communication::Gain()
 {
   ChangeLEDValue(0);
@@ -292,6 +340,10 @@ void communication::Gain()
   coupling_gains[0] = (light_on - light_off);
 }
 
+/*
+ * Function to send the calibration data to the other desks
+ * @param lux: array of lux values
+ */
 void communication::consensus_msg_lux(double lux[3])
 {
   struct can_frame canMsgTx;
@@ -309,7 +361,7 @@ void communication::consensus_msg_lux(double lux[3])
   err = can0.sendMessage(&canMsgTx);
   if (err != MCP2515::ERROR_OK)
   {
-    // MESSAGE NOT SENT
+    Serial.printf("Error sending message: %s\n", err);
   }
   missing_ack = desks_connected;
   time_ack = millis();
@@ -318,6 +370,11 @@ void communication::consensus_msg_lux(double lux[3])
 }
 
 //------------------------UTILS------------------------
+
+/*
+ * Function to check if the missing ack is empty
+ * @param node - Node object
+ */
 void communication::confirm_msg(can_frame ack_msg)
 {
 
@@ -325,24 +382,36 @@ void communication::confirm_msg(can_frame ack_msg)
   {
     if (ack_msg.data[i + 1] != last_msg_sent.data[i])
     {
+      Serial.printf("Not the same message\n");
       return;
     }
   }
-  Serial.printf("Message acknowledged %d\n", ack_msg.can_id);
+  Serial.printf("SAME MESSAGE\n");
   missing_ack.erase(ack_msg.can_id);
   return;
 }
 
+/*
+ * Function to convert a char message to an int
+ * @param msg - char to cinvert
+ */
 int communication::char_msg_to_int(char msg)
 {
   return msg - '0';
 }
 
+/*
+ * Function to convert an int to a char message
+ * @param msg - int to convert
+ */
 char communication::int_to_char_msg(int msg)
 {
   return msg + '0';
 }
 
+/*
+ * Function to resend the last message
+ */
 void communication::resend_last_msg()
 {
   last_msg_counter++;
@@ -355,15 +424,18 @@ void communication::resend_last_msg()
       desks_connected.erase(element);
       Serial.printf("Node %d removed from the connected nodes do to inactivity\n", element);
     }
-    missing_ack = desks_connected;
   }
   err = can0.sendMessage(&last_msg_sent);
-  // / if (err != MCP2515::ERROR_OK)
-  // {
-  //   // MESSAGE NOT SENT
-  // }
+  if (err != MCP2515::ERROR_OK)
+  {
+    Serial.printf("Error sending message: %s\n", err);
+  }
 }
 
+/*
+ * Function to assyncronously delay
+ * @param delay: value in milliseconds to do a delay
+ */
 void communication::delay_manual(unsigned long delay)
 {
   unsigned long delay_start = millis();
@@ -374,10 +446,14 @@ void communication::delay_manual(unsigned long delay)
   }
 }
 
+/*
+ * Start consensus algorithm
+ */
 void communication::start_consensus()
 {
   struct can_frame canMsgTx;
-  canMsgTx.can_id = 0;
+  canMsgTx.can_id = *(desks_connected.begin());
+  Serial.printf("Sending T message to %d\n", canMsgTx.can_id);
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = 'T';
   canMsgTx.data[1] = int_to_char_msg(my_desk->getDeskNumber());
@@ -388,7 +464,7 @@ void communication::start_consensus()
   err = can0.sendMessage(&canMsgTx);
   if (err != MCP2515::ERROR_OK)
   {
-    // MESSAGE NOT SENT
+    Serial.printf("Error sending message: %s\n", err);
   }
   missing_ack = desks_connected;
   time_ack = millis();
@@ -396,6 +472,12 @@ void communication::start_consensus()
   last_msg_counter = 0;
 }
 
+/*
+ * Function to send the consensus data
+ * @param part: char to know if it is the first or second part of the consensus
+ * @param node: Node object
+ * @param destination: int to know the destination of the message
+ */
 void communication::send_consensus_data(char part, Node *node, int destination)
 {
   struct can_frame canMsgTx;
@@ -414,7 +496,7 @@ void communication::send_consensus_data(char part, Node *node, int destination)
     err = can0.sendMessage(&canMsgTx);
     if (err != MCP2515::ERROR_OK)
     {
-      // MESSAGE NOT SENT
+      Serial.printf("Error sending message: %s\n", err);
     }
   }
   else
@@ -431,12 +513,12 @@ void communication::send_consensus_data(char part, Node *node, int destination)
     err = can0.sendMessage(&canMsgTx);
     if (err != MCP2515::ERROR_OK)
     {
-      // MESSAGE NOT SENT
+      Serial.printf("Error sending message \n");
     }
   }
   missing_ack.insert(destination);
+  Serial.printf("Sent message %c to %d\n", part, destination);
   time_ack = millis();
   last_msg_sent = canMsgTx;
   last_msg_counter = 0;
-  printf("Sent message %c to %d\n", part, destination);
 }

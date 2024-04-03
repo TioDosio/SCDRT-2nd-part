@@ -8,6 +8,7 @@ inline void communicationLoop()
         if (!comm.isMissingAckEmpty()) // Check if there are any missing acks
         {
             comm.acknowledge_loop(&node);
+            data_available = true;
         }
         else
         {
@@ -67,41 +68,45 @@ inline void communicationLoop()
                     }
                     read_command(command, 1);
                 }
+                else if (canMsgRx.can_dlc == 6) // responses
+                {
+                    float value;
+                    memcpy(&value, &canMsgRx.data[2], sizeof(float));
+
+                    Serial.print(canMsgRx.data[0]);
+                    Serial.print(" ");
+                    Serial.print(comm.char_msg_to_int(canMsgRx.data[1]));
+                    Serial.print(" ");
+                    Serial.println(value);
+                }
+
                 else
                 {
-                    Serial.printf("Message received:");
-                    for (int i = 0; i < canMsgRx.can_dlc; i++)
-                    {
-                        Serial.printf(" %c", canMsgRx.data[i]);
-                    }
-                    Serial.println();
                     switch (canMsgRx.data[0])
                     {
                     case 'W':
                         comm.msg_received_connection(canMsgRx);
                         break;
                     case 'C':
-                        comm.msg_received_calibration(canMsgRx);
+                        comm.msg_received_calibration(canMsgRx, &node);
                         break;
                     case 'T':
                     {
                         comm.ack_msg(canMsgRx);
-                        Serial.printf("Received T from desk %d\n", comm.char_msg_to_int(canMsgRx.data[1]));
-                        comm.delay_manual(3);
                         comm.send_consensus_data('1', &node, comm.char_msg_to_int(canMsgRx.data[1]));
                     }
                     break;
                     case '1':
                     {
-                        Serial.printf("ENTrei no '1'\n");
                         comm.ack_msg(canMsgRx);
-                        Serial.printf("Passei do ack do '1'\n");
-                        int index = std::distance(comm.getDesksConnected().begin(), comm.getDesksConnected().find(canMsgRx.data[1]));
+                        Serial.printf("ENTrei no '1' de %d \n", comm.char_msg_to_int(canMsgRx.data[1]));
+                        std::set<int> desks = comm.getDesksConnected();
+                        int index = std::distance(desks.begin(), desks.find(comm.char_msg_to_int(canMsgRx.data[1])));
                         OtherLuminaires Lums{};
                         for (int i = 0; i < 3; i++)
                         {
-                            Lums.setKIndex(0, (static_cast<int>(canMsgRx.data[2 * i + 2]) + (static_cast<int>(canMsgRx.data[2 * i + 3]) << 8)) / 1000.0);
-                            Serial.printf("Desk: %d -> KIndex %d: %f\n", canMsgRx.can_id, i, Lums.getKIndex(i));
+                            float value = (static_cast<int>(canMsgRx.data[2 * i + 2]) + (static_cast<int>(canMsgRx.data[2 * i + 3]) << 8)) / 1000.0;
+                            Lums.setKIndex(i, value);
                             node.setLums(Lums, index);
                         }
                     }
@@ -109,13 +114,18 @@ inline void communicationLoop()
                     case '2':
                     {
                         comm.ack_msg(canMsgRx);
-                        int index = std::distance(comm.getDesksConnected().begin(), comm.getDesksConnected().find(canMsgRx.data[1]));
+                        Serial.printf("ENTrei no '2' de %d \n", comm.char_msg_to_int(canMsgRx.data[1]));
+                        std::set<int> desks = comm.getDesksConnected();
+                        int index = std::distance(desks.begin(), desks.find(comm.char_msg_to_int(canMsgRx.data[1])));
                         OtherLuminaires Lums = node.getLums(index);
                         Lums.setO((static_cast<int>(canMsgRx.data[2]) + (static_cast<int>(canMsgRx.data[3]) << 8)) / 1000.0);
                         Lums.setC((static_cast<int>(canMsgRx.data[4]) + (static_cast<int>(canMsgRx.data[5]) << 8)) / 100.0);
                         Lums.setL((static_cast<int>(canMsgRx.data[6]) + (static_cast<int>(canMsgRx.data[7]) << 8)) / 100.0);
+                        node.setLums(Lums, index);
+
                         if (node.receivedAllLums())
                         {
+                            Serial.println("Received all Lums\n");
                             double newLuminance[3];
                             mainConsensus(newLuminance);
                             comm.consensus_msg_lux(newLuminance);
@@ -172,20 +182,23 @@ inline void communicationLoop()
                     case 'L': // last minute buffer
                     {
                         float lux;
+                        int desk = comm.char_msg_to_int(canMsgRx.data[1]);
                         for (int i = 0; i < 3; i++)
                         {
-                            lux = (static_cast<int>(canMsgRx.data[2 * i + 1]) + (static_cast<int>(canMsgRx.data[2 * i + 2]) << 8)) / 100.0;
-                            my_desk.store_buffer_l(canMsgRx.can_id - 1, lux);
+                            lux = (static_cast<int>(canMsgRx.data[2 * i + 2]) + (static_cast<int>(canMsgRx.data[2 * i + 3]) << 8)) / 100.0;
+                            my_desk.store_buffer_l(desk, lux);
+                            my_desk.Compute_avg(my_pid.get_h(), lux, my_desk.getRef(), my_desk.getDeskNumber()); // TODO adicionar compute average
                         }
                     }
                     break;
                     case 'D': // last minute buffer
                     {
                         float duty_cycle;
+                        int desk = comm.char_msg_to_int(canMsgRx.data[1]);
                         for (int i = 0; i < 3; i++)
                         {
-                            duty_cycle = (static_cast<int>(canMsgRx.data[2 * i + 1]) + (static_cast<int>(canMsgRx.data[2 * i + 2]) << 8)) / 100.0;
-                            my_desk.store_buffer_d(canMsgRx.can_id - 1, duty_cycle);
+                            duty_cycle = (static_cast<int>(canMsgRx.data[2 * i + 2]) + (static_cast<int>(canMsgRx.data[2 * i + 3]) << 8)) / 100.0;
+                            my_desk.store_buffer_d(desk, duty_cycle);
                         }
                     }
                     break;
