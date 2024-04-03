@@ -5,4 +5,3 @@ float adc_to_lux(int read_adc);
 float volt_to_lux(float volt);
 float digital_filter(float value);
 void ref_change(float value);
-void print_serial(char *message);
