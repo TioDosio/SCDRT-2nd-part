@@ -28,8 +28,9 @@ public:
                                  {
                                      rbuf[sz] = 0;
                                      std::cout << "Received command from client: " << rbuf << std::endl;
-                                     async_write(sock, buffer(rbuf, sz),
-                                                 [this, self](boost::system::error_code ec, std::size_t /* sz */) {});
+
+                                     /*async_write(sock, buffer(rbuf, sz),
+                                                 [this, self](boost::system::error_code ec, std::size_t sz) {});*/
 
                                      // Write the received command to the serial port
                                      boost::asio::write(sp, buffer(rbuf, sz));
@@ -93,24 +94,24 @@ int main(int argc, char *argv[])
     // Loop until the serial port /dev/ttyACM0 becomes active
     while (!serialPortOpened)
     {
-        // Check if /dev/ttyACM0 exists
-        if (boost::filesystem::exists("/dev/ttyACM0"))
+        // Check if port exists
+        if (boost::filesystem::exists(argv[1]))
         {
-            sp.open("/dev/ttyACM0"); // Open /dev/ttyACM0
+            sp.open(argv[1]); // Open /dev/ttyACM0
             if (sp.is_open())
             {
-                std::cout << "Serial port opened successfully: /dev/ttyACM0\n";
+                std::cout << "Serial port opened successfully\n";
                 serialPortOpened = true; // Set flag to exit loop
             }
             else
             {
-                std::cerr << "Could not open serial port: /dev/ttyACM0\n";
+                std::cerr << "Could not open serial port\n";
                 std::this_thread::sleep_for(std::chrono::seconds(1)); // Wait for a while before retrying
             }
         }
         else
         {
-            std::cerr << "Serial port not found: /dev/ttyACM0\n";
+            std::cerr << "Serial port not found\n";
             std::this_thread::sleep_for(std::chrono::seconds(1)); // Wait for a while before retrying
         }
     }

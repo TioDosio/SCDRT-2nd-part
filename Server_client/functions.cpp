@@ -74,67 +74,67 @@ int ver_message(const std::string &input)
 
     if (numElements == 3 && elements[0] == "g")
     {
-        if (elements[1] == "d" && led_max > isNumber(elements[2]) && 0 < isNumber(elements[2]))
+        if (elements[1] == "d" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "r")
+        else if (elements[1] == "r" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "l")
+        else if (elements[1] == "l" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "o")
+        else if (elements[1] == "o" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "a")
+        else if (elements[1] == "a" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "k")
+        else if (elements[1] == "k" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "x")
+        else if (elements[1] == "x" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "p")
+        else if (elements[1] == "p" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "t")
+        else if (elements[1] == "t" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "e")
+        else if (elements[1] == "e" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "v")
+        else if (elements[1] == "v" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "f")
+        else if (elements[1] == "f" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "O")
+        else if (elements[1] == "O" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "U")
+        else if (elements[1] == "U" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "L")
+        else if (elements[1] == "L" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
-        else if (elements[1] == "c")
+        else if (elements[1] == "c" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
         {
             flag = 1;
         }
@@ -149,15 +149,19 @@ int ver_message(const std::string &input)
     {
         flag = 1;
     }
-    else if (numElements == 3 && (elements[0] == "s" || elements[0] == "S"))
+    else if (numElements == 3 && (elements[0] == "s" || elements[0] == "S") && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
     {
         flag = 1;
     }
-    else if (numElements == 4 && elements[0] == "g" && elements[1] == "b")
+    else if (numElements == 4 && elements[0] == "g" && elements[1] == "b" && led_max >= isNumber(elements[2]) && 0 < isNumber(elements[2]))
     {
         flag = 1;
     }
     else if (numElements == 1 && elements[0] == "r")
+    {
+        flag = 1;
+    }
+    else if (numElements == 1 && elements[0] == "F")
     {
         flag = 1;
     }
