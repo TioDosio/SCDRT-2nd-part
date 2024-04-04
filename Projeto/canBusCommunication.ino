@@ -99,7 +99,7 @@ inline void communicationLoop()
                     }
                 }
                 break;
-                case 'b': // last minute buffer TODO mudar para b
+                case 'b':
                 {
                     float lux;
                     int desk = comm.char_msg_to_int(canMsgRx.data[1]);
@@ -107,10 +107,10 @@ inline void communicationLoop()
                     {
                         lux = (static_cast<int>(canMsgRx.data[2 * i + 2]) + (static_cast<int>(canMsgRx.data[2 * i + 3]) << 8)) / 100.0;
                         my_desk.store_buffer_l(desk, lux);
-                        my_desk.Compute_avg(my_pid.get_h(), lux, my_desk.getRef(), my_desk.getDeskNumber()); // TODO adicionar compute average
+                        my_desk.Compute_avg(my_pid.get_h(), lux, my_desk.getRef(), my_desk.getDeskNumber());
                     }
                 }
-                break;    // TODO confirmar se o compute average está correto
+                break;
                 case 'D': // last minute buffer
                 {
                     float duty_cycle;
@@ -155,8 +155,7 @@ void wakeUp()
                 my_desk.setHub(true);
             }
             comm.connection_msg('A');
-            flag_temp = true; // TODO CONECTAR PARA QUALQUER NUM DE DESKS
-                              // TODO Confirmar mensagens de e N antes de correr o new_calibration
+            flag_temp = true;
         }
         else
         {

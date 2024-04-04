@@ -93,7 +93,7 @@ void read_command(const String &buffer, bool fromCanBus)
       }
     }
     else
-    { // TODO RESET and recalibrate the system
+    {
       comm.setCore0Reading(1);
       Serial.println("ack");
     }
@@ -903,7 +903,7 @@ void send_stream(int type, unsigned long time, float lux) // type 0 -> lux, type
 void send_to_all(char type) //
 {
   struct can_frame canMsgTx;
-  canMsgTx.can_id = 0; // Replace this_desk with the correct value obtained from my_desk.getDeskNumber() // TODO ta correto?
+  canMsgTx.can_id = 0;
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = type;
   canMsgTx.data[1] = ' ';
@@ -938,7 +938,6 @@ void send_to_others(const int desk, const String &commands, const float value, i
   {
     canMsgTx.data[0] = commands.charAt(0);
     memcpy(&canMsgTx.data[1], &value, sizeof(float));
-    // TODO: ao ler o valor do buffer, ler como float e passar para int nos casos necessários
   }
   else // to send get messages <char> <char> <char> only for "g b l" and "g b d"
   {

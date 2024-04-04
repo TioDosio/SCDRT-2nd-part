@@ -105,7 +105,6 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node, pid *my_pid
     {
       double l = node->getKIndex(0) * node->getDavIndex(0) + node->getKIndex(1) * node->getDavIndex(1) + node->getKIndex(2) * node->getDavIndex(2) + node->getO();
 
-      // TODO UPDATE DUTY CYCLE
       ref_change(l);
       node->setConsensusRunning(false); // Stop the consensus when the max iterations are reached
       consensus_msg_switch(0, 'E');
@@ -213,7 +212,6 @@ void communication::msg_received_calibration(can_frame canMsgRx, Node *node, pid
   {
   case 'B': // Quando lerem o begin desligam as luzes
   {
-    // TODO : LIMPAR TODOS OS OUTRAS MENSAGENS DE CALIBRATIONS
     if (coupling_gains != NULL)
     {
       free(coupling_gains);
@@ -452,7 +450,6 @@ void communication::resend_last_msg()
   last_msg_counter++;
   if (last_msg_counter == 5) // After 5 tries, remove the nodes that didn't ack
   {
-    // TODO : CHANGE THE HUB IF THE ONE DISCONNECTED WAS THE HUB
     last_msg_counter = 0;
     for (const int &element : missing_ack)
     {

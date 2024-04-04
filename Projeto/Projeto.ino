@@ -48,7 +48,7 @@ bool my_repeating_timer_callback(struct repeating_timer *t)
   return true;
 }
 
-bool flag_temp = false; // TODO
+bool flag_temp = false;
 
 enum consensusStage : uint8_t
 {
