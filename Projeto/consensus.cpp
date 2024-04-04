@@ -1,16 +1,15 @@
-#include <iostream> //TOMAS PRECISAS DISTO TODO?
+#include <iostream> //TOMAS PRECISAS DISTO TODO
 #include "consensus.h"
-#include "Arduino.h"
 
-void Node::initializeNode(double *K, int index, double cost, double L, double o)
+void Node::initializeNode(double *K, int index, double o)
 {
     this->index = index;
-    rho = 0.6;
+    rho = 0.7;
     for (int i = 0; i < 3; i++)
     {
         d[i] = 0;
-        d_av[i] = 0;
         lastD[i] = 0;
+        d_av[i] = 0;
         lambda[i] = 0;
         k[i] = K[i];
         c[i] = (i == index) ? cost : 0;
@@ -18,8 +17,7 @@ void Node::initializeNode(double *K, int index, double cost, double L, double o)
     n = k[0] * k[0] + k[1] * k[1] + k[2] * k[2];
     m = n - k[index] * k[index];
     this->o = o;
-    this->L = L;
-    this->cost = cost;
+    L = getCurrentLowerBound();
 }
 
 double Node::evaluateCost(double d[])
@@ -217,6 +215,10 @@ bool Node::checkConvergence()
     double tol = 1e-9;
     double norm_squared = 0;
 
+    if (k[0] * getDavIndex(0) + k[1] * getDavIndex(1) + k[2] * getDavIndex(2) + o < L)
+    {
+        return false;
+    }
     if (getConsensusIterations() > 2)
     {
         for (int i = 0; i < 3; i++)
@@ -229,10 +231,7 @@ bool Node::checkConvergence()
             return true;
         }
     }
-    else if (k[0] * getDavIndex(0) + k[1] * getDavIndex(1) + k[2] * getDavIndex(2) + o < L)
-    {
-        return false;
-    }
+
     return false;
 }
 
@@ -289,11 +288,6 @@ void Node::setCost(double value)
     cost = value;
 }
 
-int Node::getIndex()
-{
-    return index;
-}
-
 double Node::getRho()
 {
     return rho;
@@ -345,11 +339,6 @@ void Node::setOccupancy(int value)
         occupancy = 2;
         L = 0;
     }
-}
-
-double Node::getO()
-{
-    return o;
 }
 
 int Node::getOccupancy()
@@ -440,76 +429,7 @@ double Node::getKIndex(int index)
     return k[index];
 }
 
-void Node::setLums(OtherLuminaires lums, int index)
-{
-    Lums[index] = lums;
-}
-
-OtherLuminaires Node::getLums(int index)
-{
-    return Lums[index];
-}
-
-OtherLuminaires::OtherLuminaires()
-{
-    for (int j = 0; j < 3; j++)
-    {
-        k[j] = -1;
-    }
-    o = -1;
-    c = -1;
-    L = -1;
-}
-
-double *OtherLuminaires::getK()
-{
-    return k;
-}
-
-double OtherLuminaires::getKIndex(int index)
-{
-    return k[index];
-}
-
-void OtherLuminaires::setKIndex(int index, double value)
-{
-    k[index] = value;
-}
-double OtherLuminaires::getO()
+double Node::getO()
 {
     return o;
-}
-void OtherLuminaires::setO(double value)
-{
-    o = value;
-}
-double OtherLuminaires::getC()
-{
-    return c;
-}
-void OtherLuminaires::setC(double value)
-{
-    c = value;
-}
-double OtherLuminaires::getL()
-{
-    return L;
-}
-void OtherLuminaires::setL(double value)
-{
-    L = value;
-}
-
-bool Node::receivedAllLums()
-{
-    for (int i = 0; i < 2; i++)
-    {
-        Serial.println(Lums[i].getO());
-        Serial.println(Lums[i].getKIndex(0));
-        if (Lums[i].getO() == -1 || Lums[i].getKIndex(0) == -1)
-        {
-            return false;
-        }
-    }
-    return true;
 }

@@ -1,35 +1,54 @@
 #include "extrafunctions.h"
-
+/*
+ * Chenge the iluminance value of the LED
+ */
 void ChangeLEDValue(int value)
 {
   analogWrite(LED_PIN, value);
 }
 
 // Conversões
+
+/*
+ * Convert the adc measure into volts
+ * @param read_adc: measure of adc
+ */
 float adc_to_volt(int read_adc)
 {
   return read_adc / adc_conv;
 }
-
+/*
+ * Convert the volts values in adc
+ * @param input_volt: value in volts
+ */
 int volt_to_adc(float input_volt)
 {
   return input_volt * adc_conv;
 }
-
+/*
+ * Convert the adc measure in lux's
+ * @param read_adc: measure of adc
+ */
 float adc_to_lux(int read_adc)
 {
   float LDR_volt;
   LDR_volt = read_adc / adc_conv;
   return volt_to_lux(LDR_volt);
 }
-
+/*
+ * Convert the volts value in lux's
+ * @param volt: value in volts
+ */
 float volt_to_lux(float volt)
 {
   float LDR_resistance = (VCC * 10000.0) / volt - 10000.0;
   return pow(10, (log10(LDR_resistance) - my_desk.getOffset_R_Lux()) / (my_desk.getM()));
 }
 
-// Média de medições, para reduzir noise;
+/*
+ * Mean of the last "value" values to reduce the noise
+ * @param value: number of values to do tge mean
+ */
 float digital_filter(float value)
 {
   float total_adc;
@@ -40,7 +59,10 @@ float digital_filter(float value)
   }
   return total_adc / value;
 }
-
+/*
+ * Change the reference of iluminance of the present node
+ * @param value: value to change the reference
+ */
 void ref_change(float value)
 {
   my_desk.setRef(value);
@@ -48,7 +70,10 @@ void ref_change(float value)
   my_pid.set_b(my_desk.getRefVolt() / my_desk.getRef(), my_desk.getGain());
   my_pid.set_Ti(Tau(my_desk.getRef()));
 }
-
+/*
+ * Capute the Tau value
+ * @param value: reference of iluminance
+ */
 float Tau(float value)
 {
   if (value >= 0.5)
@@ -63,7 +88,10 @@ float Tau(float value)
     return 0.1;
   }
 }
-
+/*
+ * Send "a" or "e" to Can Bus
+ * @param cmd: receive 0 if err or 1 to ack
+ */
 void send_ack_err(int cmd) // 0-err    1-ack
 {
   struct can_frame canMsgTx;
@@ -86,6 +114,11 @@ void send_ack_err(int cmd) // 0-err    1-ack
   }
 }
 
+/*
+ * Send 3 values of duty cycle or iluminance to CanBus
+ * @param array: the three values
+ * @param flag: to choose between lux or duty cycle
+ */
 void send_arrays_buff(float array[3], int flag)
 {
   struct can_frame canMsgTx;

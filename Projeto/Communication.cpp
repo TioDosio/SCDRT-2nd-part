@@ -39,11 +39,9 @@ void communication::acknowledge_loop(Node *node)
     }
     else
     {
-      Serial.printf("Ack received from %d -> %c %c %c %c\n", canMsgRx.can_id, canMsgRx.data[1], canMsgRx.data[2], canMsgRx.data[3], canMsgRx.data[4]);
       confirm_msg(canMsgRx);
       if (isMissingAckEmpty())
       {
-        Serial.printf("All nodes acked\n");
         msg_received_ack(last_msg_sent, node);
       }
     }
@@ -86,7 +84,6 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
         is_calibrated = true;
         calibration_msg(0, 'F');
         ChangeLEDValue(0);
-        node->initializeNode(getCouplingGains(), my_desk->getDeskNumber(), 1, 5, getExternalLight());
       }
     }
     break;
@@ -95,17 +92,24 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
     }
   }
   break;
-  case '1':
+  case 'Q':
   {
-    Serial.printf("ACK response '1'\n");
-    send_consensus_data('2', node, canMsgRx.can_id);
-  }
+    int next_desk = char_msg_to_int(canMsgRx.data[7]) + 1 > getNumDesks() ? 1 : char_msg_to_int(canMsgRx.data[7]) + 1;
+    node->setConsensusIterations(node->getConsensusIterations() + 1);
+    if (node->getConsensusIterations() == node->getConsensusMaxIterations() || (node->checkConvergence() && node->checkOtherDIsFull()))
+    {
+      double l = node->getKIndex(0) * node->getDavIndex(0) + node->getKIndex(1) * node->getDavIndex(1) + node->getKIndex(2) * node->getDavIndex(2) + node->getO();
 
-  case '2':
-  {
-    int id = *(std::next(desks_connected.begin()));
-    Serial.printf("ESte é o do 2 %d\n", id);
-    send_consensus_data('1', node, id);
+      // TODO UPDATE DUTY CYCLE
+      Serial.printf("Luminance: %f\n", l);
+      ref_change(l);
+      node->setConsensusRunning(false); // Stop the consensus when the max iterations are reached
+      consensus_msg_switch(0, 'E');
+    }
+    else
+    {
+      consensus_msg_switch(next_desk, 'T');
+    }
   }
   break;
   default:
@@ -225,7 +229,6 @@ void communication::msg_received_calibration(can_frame canMsgRx, Node *node)
   {
     is_calibrated = true;
     Serial.printf("Calibration Finished through message\n");
-    node->initializeNode(getCouplingGains(), my_desk->getDeskNumber(), 1, 5, getExternalLight());
   }
   break;
   case 'R':
@@ -248,7 +251,6 @@ void communication::msg_received_calibration(can_frame canMsgRx, Node *node)
   }
   break;
   default:
-    // Serial.printf("ERROR DURING CALIBRATION. Message C %c received.\n", canMsgRx.data[1]);
     break;
   }
 }
@@ -299,8 +301,6 @@ void communication::msg_received_connection(can_frame canMsgRx)
   }
   break;
   default:
-    // Serial.printf("ERROR DURING WAKE UP. Message W %c received.\n", canMsgRx.data[1]);
-    // TODO Substituir o serial
     break;
   }
 }
@@ -319,7 +319,6 @@ void communication::new_calibration()
   else
   {
     calibration_msg(0, 'B');
-    Serial.printf("Calibration Started\n");
     ChangeLEDValue(0);
   }
 }
@@ -340,20 +339,47 @@ void communication::Gain()
   coupling_gains[0] = (light_on - light_off);
 }
 
-/*
- * Function to send the calibration data to the other desks
- * @param lux: array of lux values
- */
-void communication::consensus_msg_lux(double lux[3])
+// CONSENSUS
+void communication::msg_received_consensus(can_frame canMsgRx, Node *node)
+{
+  double d[3];
+  int index = std::distance(desks_connected.begin(), desks_connected.find(char_msg_to_int(canMsgRx.data[7])));
+  for (int i = 0; i < 3; i++)
+  {
+    d[i] = (static_cast<int>(canMsgRx.data[2 * i + 1]) + (static_cast<int>(canMsgRx.data[2 * i + 2]) << 8)) / 10000.0;
+  }
+  node->setOtherD(index, d);
+  //  Send ack
+  ack_msg(canMsgRx);
+}
+
+// Message -> "C E/T {desk_number}" (Consensus End/Transmission)
+void communication::consensus_msg_switch(int dest_desk, char type)
+{
+  struct can_frame canMsgTx;
+  canMsgTx.can_id = dest_desk;
+  canMsgTx.can_dlc = 8;
+  canMsgTx.data[0] = type;
+  canMsgTx.data[1] = ' ';
+  canMsgTx.data[2] = int_to_char_msg(my_desk->getDeskNumber());
+  int msg;
+  for (int i = 3; i < 8; i++)
+  {
+    canMsgTx.data[i] = ' ';
+  }
+  err = can0.sendMessage(&canMsgTx);
+}
+
+void communication::consensus_msg_duty(double d[3])
 {
   struct can_frame canMsgTx;
   canMsgTx.can_id = 0;
   canMsgTx.can_dlc = 8;
-  canMsgTx.data[0] = 'E';
+  canMsgTx.data[0] = 'Q';
   int msg;
   for (int i = 1, j = 0; i < 7; i += 2, j++)
   {
-    msg = static_cast<int>(lux[j] * 100);
+    msg = d[j] > 0 ? static_cast<int>(d[j] * 10000) : 0;
     canMsgTx.data[i] = static_cast<unsigned char>(msg & 255);    // Same as msg0 % 256, but more efficient
     canMsgTx.data[i + 1] = static_cast<unsigned char>(msg >> 8); // Same as msg0 / 256, but more efficient
   }
@@ -382,11 +408,9 @@ void communication::confirm_msg(can_frame ack_msg)
   {
     if (ack_msg.data[i + 1] != last_msg_sent.data[i])
     {
-      Serial.printf("Not the same message\n");
       return;
     }
   }
-  Serial.printf("SAME MESSAGE\n");
   missing_ack.erase(ack_msg.can_id);
   return;
 }
@@ -444,81 +468,4 @@ void communication::delay_manual(unsigned long delay)
   {
     delay_end = millis();
   }
-}
-
-/*
- * Start consensus algorithm
- */
-void communication::start_consensus()
-{
-  struct can_frame canMsgTx;
-  canMsgTx.can_id = *(desks_connected.begin());
-  Serial.printf("Sending T message to %d\n", canMsgTx.can_id);
-  canMsgTx.can_dlc = 8;
-  canMsgTx.data[0] = 'T';
-  canMsgTx.data[1] = int_to_char_msg(my_desk->getDeskNumber());
-  for (int i = 2; i < 8; i++)
-  {
-    canMsgTx.data[i] = ' ';
-  }
-  err = can0.sendMessage(&canMsgTx);
-  if (err != MCP2515::ERROR_OK)
-  {
-    Serial.printf("Error sending message: %s\n", err);
-  }
-  missing_ack = desks_connected;
-  time_ack = millis();
-  last_msg_sent = canMsgTx;
-  last_msg_counter = 0;
-}
-
-/*
- * Function to send the consensus data
- * @param part: char to know if it is the first or second part of the consensus
- * @param node: Node object
- * @param destination: int to know the destination of the message
- */
-void communication::send_consensus_data(char part, Node *node, int destination)
-{
-  struct can_frame canMsgTx;
-  canMsgTx.can_id = destination;
-  canMsgTx.can_dlc = 8;
-  canMsgTx.data[0] = part;
-  canMsgTx.data[1] = int_to_char_msg(my_desk->getDeskNumber());
-  if (part == '1')
-  {
-    for (int i = 2, j = 0; i < 8; i += 2, j++)
-    {
-      int msg = static_cast<int>(node->getKIndex(j) * 1000);
-      canMsgTx.data[i] = static_cast<unsigned char>(msg & 255);    // Same as msg0 % 256, but more efficient
-      canMsgTx.data[i + 1] = static_cast<unsigned char>(msg >> 8); // Same as msg0 / 256, but more efficient
-    }
-    err = can0.sendMessage(&canMsgTx);
-    if (err != MCP2515::ERROR_OK)
-    {
-      Serial.printf("Error sending message: %s\n", err);
-    }
-  }
-  else
-  {
-    int msg = static_cast<int>(node->getO() * 1000);
-    canMsgTx.data[2] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
-    canMsgTx.data[3] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
-    msg = static_cast<int>(node->getCost() * 100);
-    canMsgTx.data[4] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
-    canMsgTx.data[5] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
-    msg = static_cast<int>(node->getCurrentLowerBound() * 100);
-    canMsgTx.data[6] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
-    canMsgTx.data[7] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
-    err = can0.sendMessage(&canMsgTx);
-    if (err != MCP2515::ERROR_OK)
-    {
-      Serial.printf("Error sending message \n");
-    }
-  }
-  missing_ack.insert(destination);
-  Serial.printf("Sent message %c to %d\n", part, destination);
-  time_ack = millis();
-  last_msg_sent = canMsgTx;
-  last_msg_counter = 0;
 }

@@ -56,7 +56,7 @@ public:
   {
     G = value;
   }
-
+  // Add the values of the averages of energy used, visibility error and flicker to the sums
   void addAvgs(float energy, float visibility, float flicker)
   {
     Energy_avg += energy;

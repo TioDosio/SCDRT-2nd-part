@@ -8,25 +8,33 @@ luminaire::luminaire(float _m, float _offset_R_Lux, float _Pmax, double ref_valu
   setRef(ref_value);
 }
 
+/*
+ * Store the value of the iluminance on the respective flag number desk
+ */
 void luminaire::store_buffer_l(int flag, float lux)
 {
-  last_minute_buffer_l[flag][idx_buffer_l[flag]] = lux;
-  idx_buffer_l[flag]++;
-  if (idx_buffer_l[flag] == buffer_size)
+  int desk = flag - 1;
+  last_minute_buffer_l[desk][idx_buffer_l[desk]] = lux;
+  idx_buffer_l[desk]++;
+  if (idx_buffer_l[desk] == buffer_size)
   {
-    idx_buffer_l[flag] = 0;
-    buffer_full_l[flag] = true; // Sinalizar que o buffer foi preenchido completamente
+    idx_buffer_l[desk] = 0;
+    buffer_full_l[desk] = true; // Sinalizar que o buffer foi preenchido completamente
   }
 }
 
+/*
+ * Store the value of the duty_cycle on the respective flag number desk
+ */
 void luminaire::store_buffer_d(int flag, float duty_cycle)
 {
-  last_minute_buffer_d[flag][idx_buffer_d[flag]] = duty_cycle;
-  idx_buffer_d[flag]++;
-  if (idx_buffer_d[flag] == buffer_size)
+  int desk = flag - 1;
+  last_minute_buffer_d[desk][idx_buffer_d[desk]] = duty_cycle;
+  idx_buffer_d[desk]++;
+  if (idx_buffer_d[desk] == buffer_size)
   {
-    idx_buffer_d[flag] = 0;
-    buffer_full_d[flag] = true; // Sinalizar que o buffer foi preenchido completamente
+    idx_buffer_d[desk] = 0;
+    buffer_full_d[desk] = true; // Sinalizar que o buffer foi preenchido completamente
   }
 }
 

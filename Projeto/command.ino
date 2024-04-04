@@ -114,7 +114,9 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         my_desk.setIgnoreReference(false);
         node.setOccupancy(flag);
-        comm.start_consensus();
+        runConsensus();
+        send_to_all('q');
+        start_consensus();
         if (fromCanBus)
         {
           send_ack_err(1);
@@ -216,25 +218,13 @@ void read_command(const String &buffer, bool fromCanBus)
       {
         if (x == 'l')
         {
-          if (fromCanBus)
-          {
-            // TODO send streaming data
-          }
-          else
-          {
-            my_desk.setLuxFlag(true);
-          }
+          // TODO send streaming data VERIFICAR SE ESTÁ CERTO
+          my_desk.setLuxFlag(true);
         }
         else if (x == 'd')
         {
-          if (fromCanBus)
-          {
-            // TODO send streaming data
-          }
-          else
-          {
-            my_desk.setDutyFlag(true);
-          }
+          // TODO send streaming data VERIFICAR SE ESTÁ CERTO
+          my_desk.setDutyFlag(true);
         }
         else
         {
@@ -325,7 +315,9 @@ void read_command(const String &buffer, bool fromCanBus)
         node.setLowerBoundOccupied(val);
         if (node.getOccupancy() == 1)
         {
-          comm.start_consensus();
+          runConsensus();
+          send_to_all('q');
+          start_consensus();
         }
         if (fromCanBus)
         {
@@ -362,7 +354,9 @@ void read_command(const String &buffer, bool fromCanBus)
         node.setLowerBoundUnoccupied(val);
         if (node.getOccupancy() == 0)
         {
-          comm.start_consensus();
+          runConsensus();
+          send_to_all('q');
+          start_consensus();
         }
         if (fromCanBus)
         {
@@ -395,7 +389,9 @@ void read_command(const String &buffer, bool fromCanBus)
     if (i == this_desk)
     {
       node.setCost(val);
-      comm.start_consensus();
+      runConsensus();
+      send_to_all('q');
+      start_consensus();
       if (fromCanBus)
       {
         send_ack_err(1);
@@ -926,11 +922,11 @@ void send_stream(int type, unsigned long time, float lux) // type 0 -> lux, type
 void send_to_all(char type) //
 {
   struct can_frame canMsgTx;
-  canMsgTx.can_id = my_desk.getDeskNumber(); // Replace this_desk with the correct value obtained from my_desk.getDeskNumber()
+  canMsgTx.can_id = 0; // Replace this_desk with the correct value obtained from my_desk.getDeskNumber()
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = type;
   canMsgTx.data[1] = ' ';
-  canMsgTx.data[2] = comm.int_to_char_msg(0);
+  canMsgTx.data[2] = comm.int_to_char_msg(my_desk.getDeskNumber());
   for (int i = 3; i < 8; i++)
   {
     canMsgTx.data[i] = ' ';
@@ -972,13 +968,28 @@ void send_to_others(const int desk, const String &commands, const float value, i
     canMsgTx.data[2] = commands.charAt(2);
   }
   canMsgTx.can_id = desk;
-
+  Serial.printf("Sending: %c %c\n", canMsgTx.data[0], canMsgTx.data[1]);
   comm.sendMsg(&canMsgTx);
   if (comm.getError() != MCP2515::ERROR_OK)
   {
     Serial.printf("Error sending message \n");
   }
 }
+
+void start_consensus()
+{
+  struct can_frame canMsgRx;
+  canMsgRx.can_id = my_desk.getDeskNumber();
+  canMsgRx.can_dlc = 8;
+  canMsgRx.data[0] = 'T';
+  for (int i = 1; i < 7; i++)
+  {
+    canMsgRx.data[i + 1] = ' ';
+  }
+  comm.add_msg_queue(canMsgRx);
+  data_available = true;
+}
+
 /*
  * Function to send responses to the gets
  * @param desk: number of the destination desk to send the response
