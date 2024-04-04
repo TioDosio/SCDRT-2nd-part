@@ -185,6 +185,13 @@ void communication::calibration_msg(int dest_desk, char type)
   {
     canMsgTx.data[i] = ' ';
   }
+  Serial.print("Message sent: ");
+  for (int i = 0; i < canMsgTx.can_dlc; i++)
+  {
+    Serial.printf("%c", canMsgTx.data[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
   err = can0.sendMessage(&canMsgTx);
   if (err != MCP2515::ERROR_OK)
   {
@@ -448,6 +455,7 @@ void communication::resend_last_msg()
       desks_connected.erase(element);
       Serial.printf("Node %d removed from the connected nodes do to inactivity\n", element);
     }
+    missing_ack.clear();
   }
   err = can0.sendMessage(&last_msg_sent);
   if (err != MCP2515::ERROR_OK)

@@ -18,7 +18,7 @@ inline void communicationLoop()
             {
                 can_frame canMsgRx;
                 comm.ReadMsg(&canMsgRx);
-                if (canMsgRx.can_id == my_desk.getDeskNumber() || canMsgRx.can_id == 0) // Check if the message is for this desk (0 is for all the desks)
+                if ((canMsgRx.can_id == my_desk.getDeskNumber() || canMsgRx.can_id == 0) && canMsgRx.data[0] != 'A') // Check if the message is for this desk (0 is for all the desks)
                 {
                     comm.add_msg_queue(canMsgRx); // Put all the messages in the queue
                 }
@@ -28,18 +28,6 @@ inline void communicationLoop()
             {
                 can_frame canMsgRx;
                 canMsgRx = comm.get_msg_queue();
-                if (comm.isConnected())
-                {
-                    if (command_msgs(canMsgRx))
-                    {
-                        continue;
-                    }
-                }
-                else
-                {
-                    comm.msg_received_connection(canMsgRx);
-                    continue;
-                }
                 switch (canMsgRx.data[0])
                 {
                 case 'W':
@@ -78,7 +66,7 @@ inline void communicationLoop()
                     ref_change(l);
                 }
                 break;
-                case 'e':
+                case 'Y':
                 {
                     if (my_desk.getHub())
                     {
@@ -86,7 +74,7 @@ inline void communicationLoop()
                     }
                 }
                 break;
-                case 'a':
+                case 'Z':
                 {
                     if (my_desk.getHub())
                     {
@@ -94,29 +82,18 @@ inline void communicationLoop()
                     }
                 }
                 break;
-                case 'l': // streaming
+                case 's': // streaming
                 {
                     if (my_desk.getHub())
                     {
-                        float lux = (static_cast<int>(canMsgRx.data[1]) + (static_cast<int>(canMsgRx.data[2]) << 8)) / 100.0;
-                        unsigned int time;
-                        memcpy(&time, &canMsgRx.data[3], sizeof(unsigned int));
-                        Serial.printf("s l %f %u", lux, time);
+                        float lux = (static_cast<int>(canMsgRx.data[3]) + (static_cast<int>(canMsgRx.data[4]) << 8)) / 100.0;
+                        unsigned int time = (static_cast<int>(canMsgRx.data[5]) + (static_cast<int>(canMsgRx.data[6]) << 8)) / 100.0;
+
+                        Serial.printf("s %c %c %f %u", canMsgRx.data[1], canMsgRx.data[2], lux, time);
                     }
                 }
                 break;
-                case 'd': // streaming
-                {
-                    if (my_desk.getHub())
-                    {
-                        float duty_cycle = (static_cast<int>(canMsgRx.data[1]) + (static_cast<int>(canMsgRx.data[2]) << 8)) / 100.0;
-                        unsigned int time;
-                        memcpy(&time, &canMsgRx.data[3], sizeof(unsigned int));
-                        Serial.printf("s l %f %u", duty_cycle, time);
-                    }
-                }
-                break;
-                case 'L': // last minute buffer
+                case 'L': // last minute buffer TODO mudar para b
                 {
                     float lux;
                     int desk = comm.char_msg_to_int(canMsgRx.data[1]);
@@ -140,7 +117,8 @@ inline void communicationLoop()
                 }
                 break;
                 default:
-                    // passar de canMsgRx.data[] para string e mandar para o read_command()
+                    command_msgs(canMsgRx);
+                    //  passar de canMsgRx.data[] para string e mandar para o read_command()
                     break;
                 }
             }
@@ -168,6 +146,7 @@ void wakeUp()
             comm.connection_msg('A');
             flag_temp = true; // TODO CONECTAR PARA QUALQUER NUM DE DESKS
                               // TODO Confirmar mensagens de e N antes de correr o new_calibration
+            Serial.printf("Time to connect %d\n", comm.getTimeToConnect());
         }
         else
         {
@@ -204,20 +183,29 @@ void resendAck()
 /*
  * Start the calibration of the nodes in the system, only starts when all desks are connected
  */
-void start_calibration()
+inline void start_calibration()
 {
     if (flag_temp && (comm.getNumDesks()) == 3) // Initialize the calibration when all the desks are connected
     {
         if (my_desk.getDeskNumber() == 3)
         {
+            Serial.println("Calibration started");
             comm.new_calibration();
         }
         flag_temp = false;
     }
 }
 
-bool command_msgs(can_frame canMsgRx)
+void command_msgs(can_frame canMsgRx)
 {
+    if (canMsgRx.can_id == 1 && my_desk.getHub())
+    {
+        float value;
+        memcpy(&value, &canMsgRx.data[2], sizeof(float));
+
+        Serial.printf("%c %d %f", canMsgRx.data[0], comm.char_msg_to_int(canMsgRx.data[1]), value);
+        return;
+    }
     switch (canMsgRx.data[0])
     {
     case 's':
@@ -227,30 +215,13 @@ bool command_msgs(can_frame canMsgRx)
         String command;
         if (canMsgRx.data[1] == 'b') // g b desk
         {
-            command.concat(canMsgRx.data[0]);
-            command.concat(" ");
-            command.concat(canMsgRx.data[1]);
-            command.concat(" ");
-            command.concat(canMsgRx.data[2]);
-            command.concat(" ");
-            command.concat(canMsgRx.can_id);
+            command = String((char)canMsgRx.data[0]) + " " + String((char)canMsgRx.data[1]) + " " + String((char)canMsgRx.data[2]) + " " + String(canMsgRx.can_id);
         }
         else // g a desk || s l/d desk | S l/d desk
         {
-            command.concat(canMsgRx.data[0]);
-            command.concat(" ");
-            command.concat(canMsgRx.data[1]);
-            command.concat(" ");
-            command.concat(canMsgRx.can_id);
-
-            Serial.print(canMsgRx.data[0]);
-            Serial.print(" ");
-            Serial.println(canMsgRx.data[1]);
-            Serial.print("Command: ");
-            Serial.println(command);
+            command = String((char)canMsgRx.data[0]) + " " + String((char)canMsgRx.data[1]) + " " + String(canMsgRx.can_id);
         }
-        read_command(command, 1);
-        return true;
+        read_command(command.c_str(), 1);
     }
     break;
     case 'd':
@@ -266,34 +237,19 @@ bool command_msgs(can_frame canMsgRx)
         float value;
         memcpy(&value, &canMsgRx.data[1], sizeof(float));
 
-        command.concat(canMsgRx.data[0]);
-        command.concat(" ");
         if (canMsgRx.data[0] == 'o' || canMsgRx.data[0] == 'a' || canMsgRx.data[0] == 'k')
         {
-            command.concat(static_cast<int>(value));
+            int aux = static_cast<int>(value);
+            command = String((char)canMsgRx.data[0]) + " " + String(canMsgRx.can_id) + " " + String(aux);
         }
         else
         {
-            command.concat(value);
+            command = String((char)canMsgRx.data[0]) + " " + String(canMsgRx.can_id) + " " + String(value);
         }
-
         read_command(command, 1);
-        return true;
     }
     break;
     default:
-        if (canMsgRx.can_id == 1 && my_desk.getHub()) // responses
-        {
-            float value;
-            memcpy(&value, &canMsgRx.data[2], sizeof(float));
-
-            Serial.print(canMsgRx.data[0]);
-            Serial.print(" ");
-            Serial.print(comm.char_msg_to_int(canMsgRx.data[1]));
-            Serial.print(" ");
-            Serial.println(value);
-            return true;
-        }
-        return false;
+        break;
     }
 }

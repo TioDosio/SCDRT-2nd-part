@@ -5,7 +5,7 @@
 #include "Communication.h"
 #include "extrafunctions.h"
 
-#define TIME_ACK 1500
+#define TIME_ACK 2500
 
 // luminaire
 const int LED_PIN = 15;     // led pin

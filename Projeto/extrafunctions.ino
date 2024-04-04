@@ -96,15 +96,14 @@ void send_ack_err(int cmd) // 0-err    1-ack
 {
   struct can_frame canMsgTx;
   canMsgTx.can_id = 1;
+  canMsgTx.can_dlc = 8;
   if (cmd == 0)
   {
-    canMsgTx.can_dlc = 1;
-    canMsgTx.data[0] = 'e';
+    canMsgTx.data[0] = 'Y';
   }
   else if (cmd == 1)
   {
-    canMsgTx.can_dlc = 1;
-    canMsgTx.data[0] = 'a';
+    canMsgTx.data[0] = 'Z';
   }
 
   comm.sendMsg(&canMsgTx);

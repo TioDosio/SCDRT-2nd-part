@@ -25,6 +25,8 @@ class communication
     MCP2515::ERROR err;
     MCP2515 can0{spi0, 17, 19, 16, 18, 10000000};
     luminaire *my_desk;
+    bool core1_reading;
+    bool core0_reading;
 
 public:
     explicit communication(luminaire *_my_desk);
@@ -115,6 +117,17 @@ public:
     {
         return missing_ack;
     }
+
+    bool isCore1Reading()
+    {
+        return core1_reading;
+    }
+
+    bool isCore0Reading()
+    {
+        return core0_reading;
+    }
+
     // Setters
     void setConnectTime(unsigned long time)
     {
@@ -162,6 +175,16 @@ public:
     bool isQueueEmpty()
     {
         return command_queue.empty();
+    }
+
+    void setCore1Reading(bool reading)
+    {
+        core1_reading = reading;
+    }
+
+    void setCore0Reading(bool reading)
+    {
+        core0_reading = reading;
     }
 
     // Can0

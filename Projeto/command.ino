@@ -241,8 +241,7 @@ void read_command(const String &buffer, bool fromCanBus)
       else
       {
         String result;
-        result.concat('s'); // Add 's'
-        result.concat(x);   // Add 'd' or 'l'
+        result = "s " + String(x);
 
         send_to_others(i, result, 0, 0);
       }
@@ -300,8 +299,7 @@ void read_command(const String &buffer, bool fromCanBus)
     else if (my_desk.getHub())
     {
       String result;
-      result.concat('S'); // Add 'S'
-      result.concat(x);   // Add 'd' or 'l'
+      result = "S " + String(x);
 
       send_to_others(i, result, 0, 0);
     }
@@ -310,7 +308,7 @@ void read_command(const String &buffer, bool fromCanBus)
     sscanf(buffer.c_str(), "O %d %f", &i, &val);
     if (i == this_desk)
     {
-      if (val > 0)
+      if (val >= 0)
       {
         node.setLowerBoundOccupied(val);
         if (node.getOccupancy() == 1)
@@ -349,7 +347,7 @@ void read_command(const String &buffer, bool fromCanBus)
     sscanf(buffer.c_str(), "U %d %f", &i, &val);
     if (i == this_desk)
     {
-      if (val > 0)
+      if (val >= 0)
       {
         node.setLowerBoundUnoccupied(val);
         if (node.getOccupancy() == 0)
@@ -423,6 +421,7 @@ void read_command(const String &buffer, bool fromCanBus)
     {
     case 'd':
       sscanf(buffer.c_str(), "g d %d", &i);
+
       if (i == this_desk) // if the desk is mine
       {
         if (fromCanBus) // if from can bus and is my desk, process message and send to others
@@ -787,8 +786,7 @@ void read_command(const String &buffer, bool fromCanBus)
       else
       {
         String result;
-        result.concat("gb"); // Add "g b"
-        result.concat(x);    // Add 'd' or 'l'
+        result = "gb " + String(x);
 
         send_to_others(i, result, 0, 2);
       }
@@ -890,23 +888,26 @@ void send_stream(int type, unsigned long time, float lux) // type 0 -> lux, type
   canMsgTx.can_dlc = 8;
   if (type == 0)
   {
-    canMsgTx.data[0] = 'l';
-    canMsgTx.data[1] = comm.int_to_char_msg(my_desk.getDeskNumber());
+    canMsgTx.data[0] = 's';
+    canMsgTx.data[1] = 'l';
+    canMsgTx.data[2] = comm.int_to_char_msg(my_desk.getDeskNumber());
     msg = static_cast<int>(lux * 100);
-    canMsgTx.data[2] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
-    canMsgTx.data[3] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
+    canMsgTx.data[3] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
+    canMsgTx.data[4] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
   }
   else
   {
-    canMsgTx.data[0] = 'd';
-    canMsgTx.data[1] = comm.int_to_char_msg(my_desk.getDeskNumber());
+    canMsgTx.data[0] = 's';
+    canMsgTx.data[1] = 'd';
+    canMsgTx.data[2] = comm.int_to_char_msg(my_desk.getDeskNumber());
     msg = static_cast<int>(my_desk.getDutyCycle() * 100);
-    canMsgTx.data[2] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
-    canMsgTx.data[3] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
+    canMsgTx.data[3] = static_cast<unsigned char>(msg & 255); // Same as msg0 % 256, but more efficient
+    canMsgTx.data[4] = static_cast<unsigned char>(msg >> 8);  // Same as msg0 / 256, but more efficient
   }
   // TIME
   unsigned int time_aux = static_cast<unsigned int>(time);
-  memcpy(&canMsgTx.data[4], &time_aux, sizeof(unsigned int));
+  canMsgTx.data[5] = static_cast<unsigned char>(time_aux & 255); // Same as msg0 % 256, but more efficient
+  canMsgTx.data[6] = static_cast<unsigned char>(time_aux >> 8);  // Same as msg0 / 256, but more efficient
 
   comm.sendMsg(&canMsgTx);
   if (comm.getError() != MCP2515::ERROR_OK)
@@ -922,7 +923,7 @@ void send_stream(int type, unsigned long time, float lux) // type 0 -> lux, type
 void send_to_all(char type) //
 {
   struct can_frame canMsgTx;
-  canMsgTx.can_id = 0; // Replace this_desk with the correct value obtained from my_desk.getDeskNumber()
+  canMsgTx.can_id = 0; // Replace this_desk with the correct value obtained from my_desk.getDeskNumber() // TODO ta correto?
   canMsgTx.can_dlc = 8;
   canMsgTx.data[0] = type;
   canMsgTx.data[1] = ' ';
@@ -957,6 +958,8 @@ void send_to_others(const int desk, const String &commands, const float value, i
   {
     canMsgTx.data[0] = commands.charAt(0);
     memcpy(&canMsgTx.data[1], &value, sizeof(float));
+    float bnanaa;
+    memcpy(&bnanaa, &canMsgTx.data[1], sizeof(float));
     // TODO: ao ler o valor do buffer, ler como float e passar para int nos casos necessários
   }
   else // to send get messages <char> <char> <char> only for "g b l" and "g b d"
@@ -966,7 +969,7 @@ void send_to_others(const int desk, const String &commands, const float value, i
     canMsgTx.data[2] = commands.charAt(2);
   }
   canMsgTx.can_id = desk;
-  Serial.printf("Sending: %c %c\n", canMsgTx.data[0], canMsgTx.data[1]);
+  // Serial.printf("Sending: %c %c\n", canMsgTx.data[0], canMsgTx.data[1]);
   comm.sendMsg(&canMsgTx);
   if (comm.getError() != MCP2515::ERROR_OK)
   {
@@ -1003,7 +1006,8 @@ void response_msg(const int desk, const String &commands, const float value)
   canMsgTx.data[0] = commands.charAt(0);
   canMsgTx.data[1] = comm.int_to_char_msg(desk);
   memcpy(&canMsgTx.data[2], &value, sizeof(float));
-
+  float banana;
+  memcpy(&banana, &canMsgTx.data[2], sizeof(float));
   comm.sendMsg(&canMsgTx);
   if (comm.getError() != MCP2515::ERROR_OK)
   {
