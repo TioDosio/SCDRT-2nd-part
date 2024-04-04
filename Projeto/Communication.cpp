@@ -24,7 +24,7 @@ int communication::find_desk()
  * Function to check acks and put the messages on the queue
  * @param node - Node object
  */
-void communication::acknowledge_loop(Node *node)
+void communication::acknowledge_loop(Node *node, pid *my_pid)
 {
   while (can0.checkReceive() && !isMissingAckEmpty())
   {
@@ -42,7 +42,7 @@ void communication::acknowledge_loop(Node *node)
       confirm_msg(canMsgRx);
       if (isMissingAckEmpty())
       {
-        msg_received_ack(last_msg_sent, node);
+        msg_received_ack(last_msg_sent, node, my_pid);
       }
     }
   }
@@ -53,7 +53,7 @@ void communication::acknowledge_loop(Node *node)
  * @param canMsgRx - can_frame object
  * @param node - Node object
  */
-void communication::msg_received_ack(can_frame canMsgRx, Node *node)
+void communication::msg_received_ack(can_frame canMsgRx, Node *node, pid *my_pid)
 {
   switch (canMsgRx.data[0])
   {
@@ -84,7 +84,7 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
         is_calibrated = true;
         calibration_msg(0, 'F');
         ChangeLEDValue(0);
-        my_pid.set_b(my_desk->lux_to_volt(my_desk->getRef()) / getRef(), my_desk->getGain());
+        my_pid->set_b(my_desk->lux_to_volt(my_desk->getRef()) / my_desk->getRef(), my_desk->getGain());
       }
     }
     break;
@@ -207,7 +207,7 @@ void communication::calibration_msg(int dest_desk, char type)
  * Function to receive calibration messages
  * @param canMsgRx - can_frame object
  */
-void communication::msg_received_calibration(can_frame canMsgRx, Node *node)
+void communication::msg_received_calibration(can_frame canMsgRx, Node *node, pid *my_pid)
 {
   switch (canMsgRx.data[1])
   {
@@ -233,7 +233,7 @@ void communication::msg_received_calibration(can_frame canMsgRx, Node *node)
   {
     is_calibrated = true;
     Serial.printf("Calibration Finished through message\n");
-    my_pid.set_b(my_desk->lux_to_volt(my_desk->getRef()) / getRef(), my_desk->getGain());
+    my_pid->set_b(my_desk->lux_to_volt(my_desk->getRef()) / my_desk->getRef(), my_desk->getGain());
   }
   break;
   case 'R':

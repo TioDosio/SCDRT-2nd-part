@@ -10,7 +10,7 @@ inline void communicationLoop()
         data_available = false;
         if (!comm.isMissingAckEmpty()) // Check if there are any missing acks
         {
-            comm.acknowledge_loop(&node);
+            comm.acknowledge_loop(&node, &my_pid);
         }
         else
         {
@@ -35,7 +35,7 @@ inline void communicationLoop()
                     comm.msg_received_connection(canMsgRx);
                     break;
                 case 'C':
-                    comm.msg_received_calibration(canMsgRx, &node);
+                    comm.msg_received_calibration(canMsgRx, &node, &my_pid);
                     break;
                 case 'Q':
                     comm.msg_received_consensus(canMsgRx, &node);
