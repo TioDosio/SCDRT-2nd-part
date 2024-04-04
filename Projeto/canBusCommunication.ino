@@ -218,36 +218,50 @@ void start_calibration()
 
 bool command_msgs(can_frame canMsgRx)
 {
-    if (canMsgRx.can_dlc == 2) // char char (gets)
+    switch (canMsgRx.data[0])
+    {
+    case 's':
+    case 'S':
+    case 'g':
     {
         String command;
-        command.concat(canMsgRx.data[0]);
-        command.concat(" ");
-        command.concat(canMsgRx.data[1]);
-        command.concat(" ");
-        command.concat(canMsgRx.can_id);
-        Serial.print(canMsgRx.data[0]);
-        Serial.print(" ");
-        Serial.println(canMsgRx.data[1]);
-        Serial.print("Command: ");
-        Serial.println(command);
-        read_command(command, 1);
-    }
-    else if (canMsgRx.can_dlc == 3) // char char char (g b d or g b l)
-    {
-        String command;
-        command.concat(canMsgRx.data[0]);
-        command.concat(" ");
-        command.concat(canMsgRx.data[1]);
-        command.concat(" ");
-        command.concat(canMsgRx.data[2]);
-        command.concat(" ");
-        command.concat(canMsgRx.can_id);
+        if (canMsgRx.data[1] == 'b') // g b desk
+        {
+            command.concat(canMsgRx.data[0]);
+            command.concat(" ");
+            command.concat(canMsgRx.data[1]);
+            command.concat(" ");
+            command.concat(canMsgRx.data[2]);
+            command.concat(" ");
+            command.concat(canMsgRx.can_id);
+        }
+        else // g a desk || s l/d desk | S l/d desk
+        {
+            command.concat(canMsgRx.data[0]);
+            command.concat(" ");
+            command.concat(canMsgRx.data[1]);
+            command.concat(" ");
+            command.concat(canMsgRx.can_id);
 
+            Serial.print(canMsgRx.data[0]);
+            Serial.print(" ");
+            Serial.println(canMsgRx.data[1]);
+            Serial.print("Command: ");
+            Serial.println(command);
+        }
         read_command(command, 1);
+        return true;
     }
-    else if (canMsgRx.can_dlc == 5) // char int float (sets)
-    {
+    break;
+    case 'd':
+    case 'r':
+    case 'o':
+    case 'a':
+    case 'k':
+    case 'O':
+    case 'U':
+    case 'c':
+    { // set's
         String command;
         float value;
         memcpy(&value, &canMsgRx.data[1], sizeof(float));
@@ -264,21 +278,22 @@ bool command_msgs(can_frame canMsgRx)
         }
 
         read_command(command, 1);
+        return true;
     }
-    else if (canMsgRx.can_dlc == 6) // responses
-    {
-        float value;
-        memcpy(&value, &canMsgRx.data[2], sizeof(float));
+    break;
+    default:
+        if (canMsgRx.can_id == 1 && my_desk.getHub()) // responses
+        {
+            float value;
+            memcpy(&value, &canMsgRx.data[2], sizeof(float));
 
-        Serial.print(canMsgRx.data[0]);
-        Serial.print(" ");
-        Serial.print(comm.char_msg_to_int(canMsgRx.data[1]));
-        Serial.print(" ");
-        Serial.println(value);
-    }
-    else
-    {
+            Serial.print(canMsgRx.data[0]);
+            Serial.print(" ");
+            Serial.print(comm.char_msg_to_int(canMsgRx.data[1]));
+            Serial.print(" ");
+            Serial.println(value);
+            return true;
+        }
         return false;
     }
-    return true;
 }

@@ -787,7 +787,7 @@ void read_command(const String &buffer, bool fromCanBus)
       else
       {
         String result;
-        result.concat("bg"); // Add "g b"
+        result.concat("gb"); // Add "g b"
         result.concat(x);    // Add 'd' or 'l'
 
         send_to_others(i, result, 0, 2);
@@ -796,7 +796,7 @@ void read_command(const String &buffer, bool fromCanBus)
     default:
       if (my_desk.getHub())
       {
-        Serial.println("err");
+        Serial.println("Default err"); // TODO tirar default do print no final
       }
       else
       {
@@ -808,7 +808,7 @@ void read_command(const String &buffer, bool fromCanBus)
   default:
     if (my_desk.getHub())
     {
-      Serial.println("err");
+      Serial.println("Default err"); // TODO tirar default do print no final
     }
     else
     {
@@ -947,22 +947,20 @@ void send_to_all(char type) //
 void send_to_others(const int desk, const String &commands, const float value, int type)
 {
   struct can_frame canMsgTx;
+  canMsgTx.can_dlc = 8;
   if (type == 0) // to send get messages <char> <char>
   {
-    canMsgTx.can_dlc = 2;
     canMsgTx.data[0] = commands.charAt(0);
     canMsgTx.data[1] = commands.charAt(1);
   }
   else if (type == 1) // to send set messages <char> <float>
   {
-    canMsgTx.can_dlc = 5;
     canMsgTx.data[0] = commands.charAt(0);
     memcpy(&canMsgTx.data[1], &value, sizeof(float));
     // TODO: ao ler o valor do buffer, ler como float e passar para int nos casos necessários
   }
   else // to send get messages <char> <char> <char> only for "g b l" and "g b d"
   {
-    canMsgTx.can_dlc = 3;
     canMsgTx.data[0] = commands.charAt(0);
     canMsgTx.data[1] = commands.charAt(1);
     canMsgTx.data[2] = commands.charAt(2);
@@ -1000,7 +998,7 @@ void response_msg(const int desk, const String &commands, const float value)
 {
   struct can_frame canMsgTx; // r 1 value
   canMsgTx.can_id = 1;
-  canMsgTx.can_dlc = 6;
+  canMsgTx.can_dlc = 8;
 
   canMsgTx.data[0] = commands.charAt(0);
   canMsgTx.data[1] = comm.int_to_char_msg(desk);
