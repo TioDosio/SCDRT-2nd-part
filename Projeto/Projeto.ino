@@ -17,6 +17,8 @@ pid my_pid{0.01, 0.3, 0.1}; // h, k, Tt
 
 Node node;
 
+uint8_t this_pico_flash_id[8], node_address;
+
 luminaire my_desk{-0.9, log10(225000) - (-0.9), 0.0158, node.getCurrentLowerBound()}; // m, b(offset), Pmax, InitialRef
 
 bool debbuging = false;
@@ -72,19 +74,16 @@ void setup()
  */
 void setup1()
 {
+  rp2040.idleOtherCore();
+  flash_get_unique_id(this_pico_flash_id);
+  node_address = this_pico_flash_id[6];
+  rp2040.resumeOtherCore();
   comm.resetCan0();
   comm.setCan0Bitrate();
   comm.setCan0NormalMode();
   gpio_set_irq_enabled_with_callback(interruptPin, GPIO_IRQ_EDGE_FALL, true, &read_interrupt);
-
-  // Connection timers
-  int seed = 0;
-  for (int i = 0; i < 5; i++)
-  {
-    seed += analogRead(A0);
-  }
-  randomSeed(seed);
-  comm.add2TimeToConnect(random(51) * 75); // To ensure that the nodes don't connect at the same time
+  randomSeed(node_address);
+  comm.add2TimeToConnect(random(13) * 300); // To ensure that the nodes don't connect at the same time
   comm.setConnectTime(millis());
 }
 
@@ -113,21 +112,8 @@ void loop()
         String command = Serial.readStringUntil('\n');
         read_command(command, 0);
       }
-
-      if (!my_desk.getHub())
-      {
-        array_lux[counter] = lux;
-        array_dc[counter] = my_desk.getDutyCycle();
-        if (counter == 2)
-        {
-          // send_arrays_buff(array_lux, 0);
-          // send_arrays_buff(array_dc, 1);
-          counter = -1;
-        }
-        counter++;
-      }
-
       my_desk.store_buffer_l(my_desk.getDeskNumber(), lux);
+      my_desk.store_buffer_d(my_desk.getDeskNumber(), my_desk.getDutyCycle());
       real_time_stream_of_data(time / 1000, lux);
     }
   }

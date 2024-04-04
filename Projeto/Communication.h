@@ -15,7 +15,6 @@ class communication
     std::set<int> desks_connected, missing_ack;
     bool is_connected;
     long time_to_connect;
-    unsigned long time_write;
     can_frame last_msg_sent;
     int last_msg_counter;
     double light_off, light_on;
@@ -51,8 +50,17 @@ public:
     void new_calibration();
     void delay_manual(unsigned long time);
     void send_consensus_data(char part, Node *node, int destination);
+    void reset_values(Node *node);
 
     // Getters
+
+    void can0BufferReset()
+    {
+        while (can0.checkReceive())
+        {
+        }
+        Serial.println("Buffer reseted");
+    }
 
     double getExternalLight() const
     {
@@ -139,7 +147,7 @@ public:
         is_connected = connected;
     }
 
-    void add2TimeToConnect(int time)
+    void add2TimeToConnect(long time)
     {
         time_to_connect += time;
     }
@@ -214,16 +222,6 @@ public:
     std::set<int> getDesksConnected()
     {
         return desks_connected;
-    }
-
-    unsigned long getTimeWrite()
-    {
-        return time_write;
-    }
-
-    void setTimeWrite(unsigned long time)
-    {
-        time_write = time;
     }
 };
 

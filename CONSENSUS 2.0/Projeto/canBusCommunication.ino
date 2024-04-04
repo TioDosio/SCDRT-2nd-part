@@ -91,7 +91,6 @@ inline void communicationLoop()
                     int i = my_desk.getDeskNumber() - 1;
                     double l = (static_cast<int>(canMsgRx.data[2 * i + 1]) + (static_cast<int>(canMsgRx.data[2 * i + 2]) << 8)) / 100.0;
                     comm.ack_msg(canMsgRx);
-                    Serial.printf("Luminance DESK %d: %f\n", i + 1, l);
                     my_desk.setRef(l);
                 }
                 break;
@@ -177,7 +176,7 @@ void wakeUp()
             my_desk.setDeskNumber(comm.find_desk());
             if (my_desk.getDeskNumber() == 1)
             {
-                my_desk.setHub();
+                my_desk.setHub(true);
             }
             comm.connection_msg('A');
             Serial.printf("Time to connect %d\n", comm.getTimeToConnect());

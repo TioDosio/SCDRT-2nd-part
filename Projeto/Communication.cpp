@@ -87,6 +87,10 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
       }
     }
     break;
+    case 'r':
+    {
+      reset_values(node);
+    }
     default:
       break;
     }
@@ -101,7 +105,6 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
       double l = node->getKIndex(0) * node->getDavIndex(0) + node->getKIndex(1) * node->getDavIndex(1) + node->getKIndex(2) * node->getDavIndex(2) + node->getO();
 
       // TODO UPDATE DUTY CYCLE
-      Serial.printf("Luminance: %f\n", l);
       ref_change(l);
       node->setConsensusRunning(false); // Stop the consensus when the max iterations are reached
       consensus_msg_switch(0, 'E');
@@ -185,13 +188,6 @@ void communication::calibration_msg(int dest_desk, char type)
   {
     canMsgTx.data[i] = ' ';
   }
-  Serial.print("Message sent: ");
-  for (int i = 0; i < canMsgTx.can_dlc; i++)
-  {
-    Serial.printf("%c", canMsgTx.data[i]);
-    Serial.print(" ");
-  }
-  Serial.println();
   err = can0.sendMessage(&canMsgTx);
   if (err != MCP2515::ERROR_OK)
   {
@@ -243,6 +239,12 @@ void communication::msg_received_calibration(can_frame canMsgRx, Node *node)
     light_on = adc_to_lux(digital_filter(50.0));
     ack_msg(canMsgRx);
     coupling_gains[char_msg_to_int(canMsgRx.data[2]) - 1] = light_on - light_off; // change
+  }
+  break;
+  case 'r':
+  {
+    ack_msg(canMsgRx);
+    reset_values(node);
   }
   break;
   case 'S':
@@ -457,7 +459,14 @@ void communication::resend_last_msg()
     }
     missing_ack.clear();
   }
-  err = can0.sendMessage(&last_msg_sent);
+  struct can_frame canMsgTx;
+  canMsgTx.can_id = last_msg_sent.can_id;
+  canMsgTx.can_dlc = 8;
+  for (int i = 0; i < 8; i++)
+  {
+    canMsgTx.data[i] = last_msg_sent.data[i];
+  }
+  err = can0.sendMessage(&canMsgTx);
   if (err != MCP2515::ERROR_OK)
   {
     Serial.printf("Error sending message: %s\n", err);
@@ -476,4 +485,32 @@ void communication::delay_manual(unsigned long delay)
   {
     delay_end = millis();
   }
+}
+
+void communication::reset_values(Node *node)
+{
+  setConnected(false);
+  setIsCalibrated(false);
+  my_desk->setRef(5);
+  my_desk->setLuxFlag(0);
+  my_desk->setDutyFlag(0);
+  my_desk->setIgnoreReference(false);
+  my_desk->setBufferFullL(false);
+  my_desk->setBufferFullD(false);
+  my_desk->setIdxBuffer_l(0);
+  my_desk->setIdxBuffer_d(0);
+  my_desk->resetMetrics();
+  my_desk->setHub(false);
+  node->setLowerBoundUnoccupied(5);
+  node->setLowerBoundOccupied(20);
+  node->setOccupancy(0);
+  node->setConsensusRunning(false);
+  ChangeLEDValue(0);
+  desks_connected.clear();
+  missing_ack.clear();
+  while (!command_queue.empty())
+  {
+    command_queue.pop();
+  }
+  add2TimeToConnect(millis());
 }

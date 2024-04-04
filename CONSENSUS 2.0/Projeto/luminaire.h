@@ -86,11 +86,6 @@ public:
     return lux_flag;
   }
 
-  bool isBufferFull() const
-  {
-    return buffer_full;
-  }
-
   float getPmax() const
   {
     return Pmax;

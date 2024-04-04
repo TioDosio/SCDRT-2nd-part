@@ -6,10 +6,10 @@
 class luminaire
 {
   float m, offset_R_Lux, Pmax, DutyCycle, G, ref_unoccupied, ref_occupied, ref, ref_volt;
-  float last_minute_buffer_l[3][buffer_size], last_minute_buffer_d[3][buffer_size];
-  bool lux_flag, duty_flag, ignore_reference, buffer_full, hub;
-  int desk_number, idx_buffer_l[3], idx_buffer_d[3];
-  bool buffer_full_l[3], buffer_full_d[3];
+  float last_minute_buffer_l[buffer_size], last_minute_buffer_d[buffer_size];
+  bool lux_flag, duty_flag, ignore_reference, hub;
+  int desk_number, idx_buffer_l, idx_buffer_d;
+  bool buffer_full_l, buffer_full_d;
   double Energy_avg, visibility_err, flicker_err;
   unsigned long counter_avg;
 
@@ -86,11 +86,6 @@ public:
     return lux_flag;
   }
 
-  bool isBufferFull() const
-  {
-    return buffer_full;
-  }
-
   float getPmax() const
   {
     return Pmax;
@@ -106,13 +101,14 @@ public:
     return m;
   }
 
-  int getIdxBuffer_l(int wich_desk) const
+  int getIdxBuffer_l() const
   {
-    return idx_buffer_l[wich_desk];
+    return idx_buffer_l;
   }
-  int getIdxBuffer_d(int wich_desk) const
+
+  int getIdxBuffer_d() const
   {
-    return idx_buffer_d[wich_desk];
+    return idx_buffer_d;
   }
 
   float getGain() const
@@ -120,14 +116,14 @@ public:
     return G;
   }
 
-  float getLastMinuteBufferD(int desk, int index) const
+  float getLastMinuteBufferD(int index) const
   {
-    return last_minute_buffer_d[desk][index];
+    return last_minute_buffer_d[index];
   }
 
-  float getLastMinuteBufferL(int desk, int index) const
+  float getLastMinuteBufferL(int index) const
   {
-    return last_minute_buffer_l[desk][index];
+    return last_minute_buffer_l[index];
   }
 
   bool isIgnoreReference() const
@@ -159,13 +155,52 @@ public:
   {
     return flicker_err / counter_avg;
   }
-  void setHub()
+  void setHub(bool value)
   {
-    hub = true;
+    hub = value;
   }
   bool getHub()
   {
     return hub;
+  }
+
+  // Setters
+  void setBufferFullL( bool value)
+  {
+    buffer_full_l = value;
+  }
+
+  void setBufferFullD( bool value)
+  {
+    buffer_full_d = value;
+  }
+
+  void resetMetrics()
+  {
+    Energy_avg = 0;
+    visibility_err = 0;
+    flicker_err = 0;
+    counter_avg = 0;
+  }
+
+  void setIdxBuffer_l( int value)
+  {
+    idx_buffer_l= value;
+  }
+
+  void setIdxBuffer_d(int value)
+  {
+    idx_buffer_d = value;
+  }
+
+  bool isBufferFullL() const
+  {
+    return buffer_full_l;
+  }
+
+  bool isBufferFullD() const
+  {
+    return buffer_full_d;
   }
 };
 

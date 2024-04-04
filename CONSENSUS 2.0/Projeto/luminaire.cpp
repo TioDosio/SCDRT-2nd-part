@@ -46,8 +46,8 @@ void luminaire::Compute_avg(float h, float lux, float reference, int desk)
 
   // flicker
   float d_k_1, d_k_2, d_k, flicker;
-  int idx = idx_buffer_l[desk] - 1;
-  if (buffer_full == false && idx_buffer_l[desk] < 2)
+  int idx = idx_buffer_l[desk - 1] - 1;
+  if (buffer_full == false && idx_buffer_l[desk - 1] < 2)
   {
     flicker = 0;
   }

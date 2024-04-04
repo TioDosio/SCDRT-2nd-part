@@ -1,4 +1,4 @@
-#include <iostream> //TOMAS PRECISAS DISTO TODO
+#include <iostream>
 #include "consensus.h"
 
 void Node::initializeNode(double *K, int index, double o)
@@ -212,7 +212,7 @@ void Node::consensusIterate()
 
 bool Node::checkConvergence()
 {
-    double tol = 1e-9;
+    double tol = 1e-12;
     double norm_squared = 0;
 
     if (k[0] * getDavIndex(0) + k[1] * getDavIndex(1) + k[2] * getDavIndex(2) + o < L)
