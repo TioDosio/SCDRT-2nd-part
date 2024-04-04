@@ -17,7 +17,7 @@ pid my_pid{0.01, 0.3, 0.1}; // h, k, Tt
 
 Node node;
 
-uint8_t this_pico_flash_id[8], node_address;
+uint8_t this_pico_flash_id[8], node_address; // o set K e o set B, têm de ser definidos no node  address
 
 luminaire my_desk{-0.9, log10(225000) - (-0.9), 0.0158, node.getCurrentLowerBound()}; // m, b(offset), Pmax, InitialRef
 

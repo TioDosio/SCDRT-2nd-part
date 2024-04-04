@@ -84,6 +84,7 @@ void communication::msg_received_ack(can_frame canMsgRx, Node *node)
         is_calibrated = true;
         calibration_msg(0, 'F');
         ChangeLEDValue(0);
+        my_pid.set_b(my_desk->lux_to_volt(my_desk->getRef()) / getRef(), my_desk->getGain());
       }
     }
     break;
@@ -232,6 +233,7 @@ void communication::msg_received_calibration(can_frame canMsgRx, Node *node)
   {
     is_calibrated = true;
     Serial.printf("Calibration Finished through message\n");
+    my_pid.set_b(my_desk->lux_to_volt(my_desk->getRef()) / getRef(), my_desk->getGain());
   }
   break;
   case 'R':
@@ -491,7 +493,7 @@ void communication::reset_values(Node *node)
 {
   setConnected(false);
   setIsCalibrated(false);
-  my_desk->setRef(5);
+  ref_change(5);
   my_desk->setLuxFlag(0);
   my_desk->setDutyFlag(0);
   my_desk->setIgnoreReference(false);

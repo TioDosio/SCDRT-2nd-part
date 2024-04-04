@@ -26,6 +26,7 @@ public:
   {
     ref = value;
     ref_volt = lux_to_volt(ref);
+    
   }
 
   void setDeskNumber(int value)
